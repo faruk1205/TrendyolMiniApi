@@ -1,6 +1,6 @@
 ﻿namespace TrendyolMiniApi.Models
 {
-    public class Favorite
+    public class Favorite : BaseEntity
     {
         public int UserId { get; set; }
         public User? User { get; set; }

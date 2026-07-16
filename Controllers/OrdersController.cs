@@ -43,7 +43,7 @@ namespace TrendyolMiniApi.Controllers
             var order = new Order
             {
                 UserId = customerId,
-                OrderDate = DateTime.UtcNow,
+                CreatedDate = DateTime.UtcNow,
                 TotalAmount = product.Price * request.Quantity,
                 
                 // EF Core Sihri: İlişkili tabloya (OrderItems) veriyi aynı anda ekliyoruz!
@@ -88,7 +88,7 @@ namespace TrendyolMiniApi.Controllers
                 .Select(o => new OrderResponseDto
                 {
                     OrderId = o.Id,
-                    OrderDate = o.OrderDate,
+                    OrderDate = o.CreatedDate,
                     TotalAmount = o.TotalAmount,
                     Items = o.OrderItems.Select(oi => new OrderItemResponseDto
                     {

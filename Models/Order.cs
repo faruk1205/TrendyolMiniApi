@@ -1,9 +1,7 @@
 ﻿namespace TrendyolMiniApi.Models
 {
-    public class Order
+    public class Order : BaseEntity
     {
-        public int Id { get; set; }
-        public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         public decimal TotalPrice { get; set; }
         public string Status { get; set; } = "Hazırlanıyor"; // Hazırlanıyor, Kargoda, Teslim Edildi
         public decimal TotalAmount { get; set; }

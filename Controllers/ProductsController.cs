@@ -83,15 +83,53 @@ namespace TrendyolMiniApi.Controllers
             return Ok(new { Message = "Ürün başarıyla vitrine eklendi!", ProductId = product.Id });
         }
         
-        // VİTRİN: Tüm ürünleri listele
+       // VİTRİN: Gelişmiş Arama, Filtreleme ve Sayfalama
         [HttpGet]
-        public async Task<IActionResult> GetProducts()
+        public async Task<IActionResult> GetProducts([FromQuery] ProductQueryParameters query)
         {
-            // Entity Framework ile veritabanından ürünleri çekerken, 
-            // Include ile bağlı olduğu Kategori ve Satıcı tablolarını da dahil (Join) ediyoruz.
-            var products = await _context.Products
+            // 1. TEMEL SORGUNUN BAŞLANGICI (Henüz veritabanına gitmedik)
+            var productsQuery = _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Seller)
+                .AsQueryable();
+
+            // 2. FİLTRELEME İŞLEMLERİ
+            if (!string.IsNullOrWhiteSpace(query.Search))
+            {
+                // İsmin veya açıklamanın içinde kelime geçiyorsa (Büyük/küçük harf duyarsız)
+                var searchTerm = query.Search.ToLower();
+                productsQuery = productsQuery.Where(p => 
+                    p.Name.ToLower().Contains(searchTerm) || 
+                    p.Description.ToLower().Contains(searchTerm));
+            }
+
+            if (query.CategoryId.HasValue)
+                productsQuery = productsQuery.Where(p => p.CategoryId == query.CategoryId.Value);
+
+            if (query.MinPrice.HasValue)
+                productsQuery = productsQuery.Where(p => p.Price >= query.MinPrice.Value);
+
+            if (query.MaxPrice.HasValue)
+                productsQuery = productsQuery.Where(p => p.Price <= query.MaxPrice.Value);
+
+            // 3. SIRALAMA İŞLEMLERİ
+            productsQuery = query.SortBy switch
+            {
+                "price_asc" => productsQuery.OrderBy(p => p.Price),
+                "price_desc" => productsQuery.OrderByDescending(p => p.Price),
+                "newest" => productsQuery.OrderByDescending(p => p.Id),
+                _ => productsQuery.OrderBy(p => p.Id) // Varsayılan sıralama
+            };
+
+            // 4. SAYFALAMA (Pagination) İŞLEMLERİ
+            // Toplam kaç ürün eşleştiğini bul (Frontend'e sayfa sayısını göstermek için)
+            var totalCount = await productsQuery.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)query.PageSize);
+
+            // Sadece istenen sayfanın verilerini getir (Skip ve Take sihridir)
+            var products = await productsQuery
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
                 .Select(p => new ProductResponseDto
                 {
                     Id = p.Id,
@@ -103,9 +141,17 @@ namespace TrendyolMiniApi.Controllers
                     CategoryName = p.Category != null ? p.Category.Name : "Kategorisiz",
                     SellerName = p.Seller != null ? p.Seller.Username : "Bilinmeyen Satıcı"
                 })
-                .ToListAsync();
+                .ToListAsync(); // Veritabanına VURDUĞUMUZ an burasıdır!
 
-            return Ok(products);
+            // 5. SONUÇ ÇANTASI (Müşteriye veriyi ve sayfa bilgilerini dön)
+            return Ok(new
+            {
+                TotalItems = totalCount,
+                TotalPages = totalPages,
+                CurrentPage = query.PageNumber,
+                PageSize = query.PageSize,
+                Data = products
+            });
         }
         
         

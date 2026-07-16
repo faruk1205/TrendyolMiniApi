@@ -15,6 +15,8 @@
             public DbSet<OrderItem> OrderItems { get; set; }
             public DbSet<Favorite> Favorites { get; set; }
             public DbSet<Message> Messages { get; set; }
+            
+            public DbSet<CartItem> CartItems { get; set; }
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
@@ -30,10 +32,18 @@
                     .HasIndex(u => u.Username)
                     .IsUnique();
 
-                // 1. KURAL: Favorite tablosunun tek bir Id'si yok, iki sütunun birleşimi anahtar (Composite Key)
+                // ESKİ KURAL (SİLİNECEK):
+                // modelBuilder.Entity<Favorite>().HasKey(f => new { f.UserId, f.ProductId })
+                //YENİ KURAL (EKLENECEK): index ile unique olma sorununu çözdük
                 modelBuilder.Entity<Favorite>()
-                    .HasKey(f => new { f.UserId, f.ProductId });
-
+                    .HasIndex(f => new { f.UserId, f.ProductId })
+                    .IsUnique(); // Bir kullanıcı, aynı ürünü sadece 1 kez favorileyebilir!
+                
+                // Bir müşteri, aynı ürünü sepette sadece 1 satır olarak tutabilir (Unique Index)
+                modelBuilder.Entity<CartItem>()
+                    .HasIndex(c => new { c.UserId, c.ProductId })
+                    .IsUnique();
+                
                 // 2. KURAL: Parasal değerlerin (decimal) SQL'de ne kadar yer kaplayacağını belirtiyoruz (Uyarıları gizler)
                 modelBuilder.Entity<Product>().Property(p => p.Price).HasColumnType("decimal(18,2)");
                 modelBuilder.Entity<Order>().Property(o => o.TotalAmount).HasColumnType("decimal(18,2)");                modelBuilder.Entity<OrderItem>().Property(oi => oi.UnitPrice).HasColumnType("decimal(18,2)");

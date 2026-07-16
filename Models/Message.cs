@@ -1,8 +1,7 @@
 ﻿namespace TrendyolMiniApi.Models
 {
-    public class Message
+    public class Message : BaseEntity
     {
-        public int Id { get; set; }
         public string Content { get; set; } = string.Empty;
         public DateTime SentAt { get; set; } = DateTime.UtcNow;
 
