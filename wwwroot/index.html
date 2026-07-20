@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Trendyol Güvenli Sohbet Testi</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 600px; }
+        .panel { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; background: #f9f9f9; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; background: white; }
+        .msg { margin-bottom: 10px; padding: 8px; border-radius: 5px; }
+        .mine { background-color: #dcf8c6; text-align: right; }
+        .other { background-color: #f1f0f0; text-align: left; }
+    </style>
+</head>
+<body>
+<h2>Güvenli Canlı Mesajlaşma</h2>
+
+<!-- 1. GİRİŞ PANELİ: Artık biletsiz (tokensız) içeri almıyoruz -->
+<div class="panel" id="loginPanel">
+    <p><b>Adım 1:</b> Swagger'dan aldığın JWT Token'ı buraya yapıştır.</p>
+    <input type="text" id="tokenInput" placeholder="eyJhbGciOiJIUzI1NiIs..." style="width: 100%; margin-bottom: 10px;" />
+    <button onclick="connectToSignalR()">Telsize Bağlan</button>
+</div>
+
+<!-- 2. SOHBET PANELİ: Sadece bağlanınca açılır -->
+<div class="panel" id="chatPanel" style="display: none;">
+    <p><b>Adım 2:</b> Kime mesaj atacaksın?</p>
+    <input type="number" id="receiverIdInput" placeholder="Alıcı ID (Örn: 2)" style="width: 100px; margin-bottom: 10px;" />
+    <br>
+    <input type="text" id="messageInput" placeholder="Mesajınız..." style="width: 70%;" />
+    <button onclick="sendPrivateMessage()">Gönder</button>
+</div>
+
+<div id="messages"></div>
+
+<script>
+    let connection;
+
+    // 1. TELSİZE GÜVENLİ BAĞLANTI KURMA
+    function connectToSignalR() {
+        const token = document.getElementById("tokenInput").value;
+        if(!token) { alert("Token girmeden bağlanamazsın!"); return; }
+
+        // JWT Token'ı URL'nin sonuna ekleyerek gönderiyoruz (Backend'de bunu yakalayacak kodu yazmıştık!)
+        connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chathub?access_token=" + token)
+            .build();
+
+        // Karşıdan mesaj gelirse ne olacak? (Backend'deki ReceivePrivateMessage ismini dinliyoruz)
+        connection.on("ReceivePrivateMessage", function (senderId, message) {
+            appendMessage(`Kullanıcı ${senderId}: ${message}`, 'other');
+        });
+
+        connection.start().then(function () {
+            document.getElementById("loginPanel").style.display = "none";
+            document.getElementById("chatPanel").style.display = "block";
+            appendMessage("Sisteme başarıyla bağlandınız! 🟢", 'other');
+        }).catch(function (err) {
+            alert("Bağlantı hatası! Token süresi dolmuş veya hatalı olabilir.");
+            console.error(err);
+        });
+    }
+
+    // 2. MESAJ GÖNDERME
+    function sendPrivateMessage() {
+        const receiverId = parseInt(document.getElementById("receiverIdInput").value);
+        const message = document.getElementById("messageInput").value;
+
+        if(!receiverId || !message) { alert("Alıcı ID ve mesaj boş olamaz!"); return; }
+
+        // Backend'deki ChatHub sınıfının içindeki 'SendPrivateMessage' metodunu tetikliyoruz
+        connection.invoke("SendPrivateMessage", receiverId, message).then(() => {
+            // Mesaj başarıyla gittiyse kendi ekranıma da yaz
+            appendMessage(`Sen: ${message}`, 'mine');
+            document.getElementById("messageInput").value = ""; // Kutuyu temizle
+        }).catch(function (err) {
+            console.error(err);
+        });
+    }
+
+    // Ekrana balonculuk çizme fonksiyonu
+    function appendMessage(text, type) {
+        const msgDiv = document.createElement("div");
+        msgDiv.className = "msg " + type;
+        msgDiv.innerText = text;
+        document.getElementById("messages").appendChild(msgDiv);
+    }
+</script>
+</body>
+</html>

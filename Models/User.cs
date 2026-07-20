@@ -31,3 +31,5 @@ almasının asıl sebebi, alt tablolardaki Yabancı Anahtarların (Foreign Key) 
  /*Favorite girdiğinde en fazla müşterinin beğendiği ürün listesi silinir, dünyanın sonu değildir. Ama işin içine Product (Ürün) girdiğinde,
 e-ticaretin en kutsal verisi olan "Faturalar ve Siparişler" (Orders & OrderItems) tehlikeye girer!
     İşte bu yüzden, büyük projelerde ModelBuilder kullanmak bir lüks değil, zorunluluktur.*/
+    
+    

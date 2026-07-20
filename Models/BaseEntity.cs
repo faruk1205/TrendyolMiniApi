@@ -10,3 +10,7 @@
 //ama asla tek başına var olamaz" olduğunu belirten çok güçlü bir mühürdür.
 //(Soyut olmasının sebebi, tek başına "BaseEntity" diye bir tablonun
 //veritabanında oluşmasını engellemektir).
+
+
+
+

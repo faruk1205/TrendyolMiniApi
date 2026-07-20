@@ -17,10 +17,29 @@
             public DbSet<Message> Messages { get; set; }
             
             public DbSet<CartItem> CartItems { get; set; }
+            
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
                 base.OnModelCreating(modelBuilder);
+                
+                
+                /*"Bir kullanıcı silinirse, onun gönderdiği mesajları da sileyim. Aynı kullanıcı silinirse,
+                 onun aldığı mesajları da sileyim." İki silme kuralı aynı tabloya çarpıştığında sistem kilitlenir.*/
+                // 1.Mesaj GÖNDEREN İLİŞKİSİ
+                modelBuilder.Entity<Message>()
+                    .HasOne(m => m.Sender)
+                    .WithMany() // User modeline list olarak eklemediğimiz için WithMany() içini boş bırakıyoruz
+                    .HasForeignKey(m => m.SenderId)
+                    .OnDelete(DeleteBehavior.Restrict); // Kullanıcı silinirse mesajlarını OTOMATİK SİLME!
+
+                // 2.Mesaj ALICI İLİŞKİSİ
+                modelBuilder.Entity<Message>()
+                    .HasOne(m => m.Receiver)
+                    .WithMany()
+                    .HasForeignKey(m => m.ReceiverId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            
                 
                 // Email adresi veritabanında benzersiz olmalı
                 modelBuilder.Entity<User>()
@@ -63,8 +82,6 @@
                     .OnDelete(DeleteBehavior.Restrict);
                 
                 
-                
-                
                 // Müşteri silindiğinde, ONA AİT favoriler otomatik silinsin (Cascade)
                 modelBuilder.Entity<Favorite>()
                     .HasOne(f => f.User)
@@ -89,3 +106,4 @@
             }
         }
     }
+    

@@ -20,4 +20,7 @@
 Bir SQL hücresinin içine koca bir listeyi, başka bir nesneyi veya bir diziyi (Array) gömemezsin (NoSQL veritabanları -örn: MongoDB- bunu yapabilir ama SQL yapamaz).*/
 /*SQL bu liste tutamama sorununu Foreign Key (Yabancı Anahtar) mantığıyla çözer.Ekran görüntüsündeki Orders tablon bir Fatura Başlığıdır
 .Sadece faturanın kime kesildiğini (UserId: 5), ne zaman kesildiğini ve genel toplamını (TotalAmount: 1599) tutar.
-İçindeki detaylar ise (hangi üründen kaç tane alındığı) OrderItems isimli o köprü tablosunda tutulur. */     
+İçindeki detaylar ise (hangi üründen kaç tane alındığı) OrderItems isimli o köprü tablosunda tutulur. */    
+
+
+
