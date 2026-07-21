@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using TrendyolMiniApi.Enums; // Enum'ı projenize dahil edin
 
 namespace TrendyolMiniApi.Models
 {
@@ -8,8 +9,13 @@ namespace TrendyolMiniApi.Models
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
-        public string Role { get; set; } = "Müşteri"; // "Müşteri" veya "Satıcı"
-
+        
+        
+        //public string Role { get; set; } = "Müşteri"; // "Müşteri" veya "Satıcı"
+        // DİKKAT: Artık string değil, Enum tipinde!
+        public UserRole Role { get; set; } = UserRole.Müşteri;
+        
+        
         // İlişkiler (Listeleri "new()" ile başlatıyoruz ki CS8618 null hatası almayalım)
         public List<Product> Products { get; set; } = new(); 
         public List<Favorite> Favorites { get; set; } = new();

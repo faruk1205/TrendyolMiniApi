@@ -15,25 +15,31 @@ namespace TrendyolMiniApi.Controllers
             _cartService = cartService;
         }
 
+        // 1. POST: Ürün ekleme. Sadece standart çerçeve döner. Ok() sarmalayıcısı yok.
         [HttpPost]
-        public async Task<IActionResult> AddToCart(CartAddDto request)
+        public async Task<BaseResponseDto> AddToCart(CartAddDto request)
         {
             await _cartService.AddToCartAsync(request, CurrentUserId);
-            return Ok(new { Message = "Ürün sepetinize eklendi." });
+            
+            return BaseResponseDto.SuccessResult("Ürün sepetinize eklendi.");
         }
 
+        // 2. GET: Sepet detaylarını listeler. Dönüş tipini Task<BaseResponseDto<...>> olarak açıkça belirtiyoruz.
         [HttpGet]
-        public async Task<IActionResult> GetMyCart()
+        public async Task<BaseResponseDto<CartDetailResponseDto>> GetMyCart()
         {
             var cart = await _cartService.GetMyCartAsync(CurrentUserId);
-            return Ok(cart);
+            
+            return BaseResponseDto<CartDetailResponseDto>.SuccessResult(cart, "Sepet başarıyla getirildi.");
         }
 
+        // 3. POST (Checkout): Sepeti siparişe dönüştürür. Yeni sipariş numarasını (int) taşıyan çerçeveyi fırlatırız.
         [HttpPost("checkout")]
-        public async Task<IActionResult> Checkout()
+        public async Task<BaseResponseDto<int>> Checkout()
         {
             int orderId = await _cartService.CheckoutAsync(CurrentUserId);
-            return Ok(new { Message = "Siparişiniz başarıyla alındı! Sepetiniz temizlendi.", OrderId = orderId });
+            
+            return BaseResponseDto<int>.SuccessResult(orderId, "Siparişiniz başarıyla alındı! Sepetiniz temizlendi.");
         }
     }
 }

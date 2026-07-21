@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Enums;
 using TrendyolMiniApi.Models;
 
 namespace TrendyolMiniApi.Services
@@ -22,6 +23,14 @@ namespace TrendyolMiniApi.Services
 
         public async Task RegisterAsync(UserRegisterDto request)
         {
+            
+            // Gelen rakam (örneğin 5), bizim Role enum'umuzun içinde var mı diye kontrol ediyoruz.
+            if (!Enum.IsDefined(typeof(UserRole), request.Role))
+            {
+                // Yoksa, Akıllı Kalkanımızın (GlobalExceptionHandler) 400 Bad Request'e çevireceği hatayı fırlatıyoruz!
+                throw new InvalidOperationException("Sisteme kayıt olurken geçersiz bir rol (yetki) gönderdiniz.");
+            }
+            
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
             {
                 throw new InvalidOperationException("Bu e-posta adresi zaten kullanımda.");
@@ -80,7 +89,7 @@ namespace TrendyolMiniApi.Services
             {
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(

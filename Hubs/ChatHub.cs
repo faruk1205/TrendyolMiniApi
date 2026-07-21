@@ -56,10 +56,17 @@ namespace TrendyolMiniApi.Hubs
 /*Telefon Santrali
 
 Ali  --------\
-    \
+             \
 Ayşe ---------> HUB ----------> Mehmet */
 
 /*Normal web APİ'de   var userId = int.Parse( User.FindFirstValue(ClaimTypes.NameIdentifier) );
 buradaki user  aslında HttpContext.User demektir.JWT doğrulandıktan sonra middleware tokenı okuyup claimleri buraya koyar. Bizde User.FindFirstValue(...) ile alırız */
 /* SignalR ise bir HTTP isteği değildir. Normal Controller'da her istekte HttpContext oluşur. Ama SignalR'de ise tek bir bağlantı açılır ve sonra aynı bağlantı kullanılır 
 Bu yüzden SignalR sana HubCallerContext verir. Yani Buradaki Context aslında HubCallerContext tipindedir. İçinde ConnectionId,User,UserIdentifier, Items, Features, Abort()... vardır.*/
+
+/*Kod Arkada Nasıl Çalışıyor? (Adım Adım Akış)
+Bağlantı Kurulurken (/chathub): Sen arayüzde token'ı girip "Telsize Bağlan" dediğinde, tarayıcı sunucudaki ChatHub sınıfına bağlanır.
+Mesaj Gönder butonuna bastığında (SendPrivateMessage): JavaScript kodundaki connection.invoke("SendPrivateMessage", ...) komutu, HTTP üzerinden bir POST isteği atmaz. Bunun yerine, aradaki açık tel (WebSocket) üzerinden sunucuya doğrudan şunu söyler:
+"Ey ChatHub, bende SendPrivateMessage adında bir eylem var. İçinde de receiverId ve message verileri var, bunu çalıştır!"
+Sonra sunucu tarafında ChatHub.cs'te yani:  token yakalama ve gelen o mesajı kaydetme metoflerı şu şekilde çalışır:
+Sunucu, alıcının WebSocket tünelini bulur ve ReceivePrivateMessage komutunu tetikler. Karşı tarafın tarayıcısındaki JS kodu (connection.on("ReceivePrivateMessage", ...)) bunu anında yakalar ve ekrana yeşil mesaj balonunu çizer.*/

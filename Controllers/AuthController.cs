@@ -16,26 +16,32 @@ namespace TrendyolMiniApi.Controllers
             _authService = authService;
         }
 
+        // 1. REGISTER: IActionResult yerine doğrudan BaseResponseDto dönüyoruz. Ok() sarmalayıcısı yok.
         [HttpPost("register")]
-        public async Task<IActionResult> Register(UserRegisterDto request)
+        public async Task<BaseResponseDto> Register(UserRegisterDto request)
         {
             await _authService.RegisterAsync(request);
-            return Ok(new { Message = "Kullanıcı başarıyla kaydedildi." });
+            
+            return BaseResponseDto.SuccessResult("Kullanıcı başarıyla kaydedildi.");
         }
 
+        // 2. LOGIN: Jenerik tipimizi açıkça Task içinde belirtiyoruz ve doğrudan fırlatıyoruz.
         [HttpPost("login")]
-        public async Task<IActionResult> Login(UserLoginDto request)
+        public async Task<BaseResponseDto<string>> Login(UserLoginDto request)
         {
             var token = await _authService.LoginAsync(request);
-            return Ok(new { Token = token, Message = "Giriş başarılı!" });
+            
+            return BaseResponseDto<string>.SuccessResult(token, "Giriş başarılı!");
         }
         
+        // 3. CHANGE PASSWORD: Yine veri dönmeyen, sadece BaseResponseDto dönen temiz yapı.
         [HttpPut("change-password")]
         [Authorize]
-        public async Task<IActionResult> ChangePassword([FromBody] PasswordChangeDto request)
+        public async Task<BaseResponseDto> ChangePassword([FromBody] PasswordChangeDto request)
         {
             await _authService.ChangePasswordAsync(request, CurrentUserId);
-            return Ok(new { Message = "Şifreniz başarıyla değiştirildi. Yeni şifrenizle giriş yapabilirsiniz." });
+            
+            return BaseResponseDto.SuccessResult("Şifreniz başarıyla değiştirildi. Yeni şifrenizle giriş yapabilirsiniz.");
         }
     }
 }

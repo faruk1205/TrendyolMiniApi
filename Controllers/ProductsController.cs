@@ -16,39 +16,41 @@ namespace TrendyolMiniApi.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Satıcı")]
-        public async Task<IActionResult> CreateProduct([FromForm] ProductCreateDto request)
+        // 1. IActionResult kalktı, doğrudan BaseResponseDto<int> dönüyoruz.
+        public async Task<BaseResponseDto<int>> CreateProduct([FromForm] ProductCreateDto request)
         {
-            // Controller sadece kimliği okur ve servise işi devreder
             int newProductId = await _productService.CreateProductAsync(request, CurrentUserId);
-            return Ok(new { Message = "Ürün başarıyla vitrine eklendi!", ProductId = newProductId });
+            
+            return BaseResponseDto<int>.SuccessResult(newProductId, "Ürün başarıyla vitrine eklendi!");        
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProducts([FromQuery] ProductQueryParameters query, CancellationToken cancellationToken)
+        // 2. Sayfalamalı listeyi jenerik çerçeve ile dönüyoruz. Ok() sarmalayıcısı yok.
+        public async Task<BaseResponseDto<ProductPagedResponseDto>> GetProducts([FromQuery] ProductQueryParameters query, CancellationToken cancellationToken)
         {
             var result = await _productService.GetProductsAsync(query, cancellationToken);
-            return Ok(result);
+            
+            return BaseResponseDto<ProductPagedResponseDto>.SuccessResult(result, "Ürünler listelendi.");        
         }
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Satıcı")]
-        public async Task<IActionResult> DeleteProduct(int id)
+        // 3. EN BÜYÜK TEMİZLİK: Try-catch bloğu tamamen silindi! Sadece başarı senaryosu kaldı.
+        public async Task<BaseResponseDto> DeleteProduct(int id)
         {
-            try
-            {
-                await _productService.DeleteProductAsync(id, CurrentUserId);
-                return Ok(new { Message = "Ürün başarıyla vitrinden kaldırıldı." });
-            }
-            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
-            catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            // Eğer ürün yoksa veya yetki yoksa, servis 'throw new' diyecek ve GlobalExceptionHandler bunu halledecek.
+            await _productService.DeleteProductAsync(id, CurrentUserId);
+            
+            return BaseResponseDto.SuccessResult("Ürün başarıyla vitrinden kaldırıldı.");
         }
 
         [HttpGet("showcase")]
-        public async Task<IActionResult> GetShowcaseProducts(CancellationToken cancellationToken)
+        // 4. Vitrin ürünleri için de tip güvenli dönüş.
+        public async Task<BaseResponseDto<object>> GetShowcaseProducts(CancellationToken cancellationToken)
         {
-            var result = await _productService.GetShowcaseProductsAsync(cancellationToken);
-            return Ok(result);
+            var showcaseData = await _productService.GetShowcaseProductsAsync(cancellationToken);
+
+            return BaseResponseDto<object>.SuccessResult(showcaseData, "Vitrin ürünleri başarıyla getirildi.");
         }
     }
 }

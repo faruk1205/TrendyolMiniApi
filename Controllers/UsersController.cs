@@ -15,18 +15,22 @@ namespace TrendyolMiniApi.Controllers
             _userService = userService;
         }
         
+        // 1. PUT: Profil güncelleme. IActionResult ve Ok() sarmalayıcısı kaldırıldı.
         [HttpPut("profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UserUpdateDto request)
+        public async Task<BaseResponseDto> UpdateProfile([FromBody] UserUpdateDto request)
         {
             await _userService.UpdateProfileAsync(request, CurrentUserId);
-            return Ok(new { Message = "Profil bilgileriniz başarıyla güncellendi." });
+            
+            return BaseResponseDto.SuccessResult("Profil bilgileriniz başarıyla güncellendi.");
         }
 
+        // 2. DELETE: Hesap silme. Doğrudan BaseResponseDto dönüyoruz.
         [HttpDelete("me")]
-        public async Task<IActionResult> DeleteMyAccount()
+        public async Task<BaseResponseDto> DeleteMyAccount()
         {
             await _userService.DeleteMyAccountAsync(CurrentUserId);
-            return Ok(new { Message = "Hesabınız ve ona bağlı olan (izin verilen) tüm verileriniz başarıyla silindi." });
+            
+            return BaseResponseDto.SuccessResult("Hesabınız ve ona bağlı olan tüm verileriniz başarıyla silindi.");
         }
     }
 }
