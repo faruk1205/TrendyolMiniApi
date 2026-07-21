@@ -1,5 +1,5 @@
 ﻿// Services/IExchangeRateProvider.cs
-namespace TrendyolMiniApi.Services
+namespace TrendyolMiniApi.Providers
 {
     public interface IExchangeRateProvider
     {

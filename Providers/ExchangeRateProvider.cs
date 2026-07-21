@@ -1,7 +1,7 @@
 ﻿// Services/ExchangeRateProvider.cs
 using TrendyolMiniApi.DTOs;
 
-namespace TrendyolMiniApi.Services
+namespace TrendyolMiniApi.Providers
 {
     public class ExchangeRateProvider : IExchangeRateProvider
     {

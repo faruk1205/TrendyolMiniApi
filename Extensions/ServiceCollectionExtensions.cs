@@ -5,7 +5,7 @@ using Microsoft.OpenApi;
 using System.Text;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.Middlewares;
-using TrendyolMiniApi.Services;
+using TrendyolMiniApi.Providers;
 
 namespace TrendyolMiniApi.Extensions
 {

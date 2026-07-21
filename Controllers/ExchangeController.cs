@@ -1,7 +1,7 @@
 ﻿// Controllers/ExchangeController.cs
 using Microsoft.AspNetCore.Mvc;
 using TrendyolMiniApi.DTOs;
-using TrendyolMiniApi.Services;
+using TrendyolMiniApi.Providers;
 
 namespace TrendyolMiniApi.Controllers
 {
