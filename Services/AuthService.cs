@@ -7,10 +7,11 @@ using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
 using TrendyolMiniApi.Enums;
 using TrendyolMiniApi.Models;
+using TrendyolMiniApi.Markers;
 
 namespace TrendyolMiniApi.Services
 {
-    public class AuthService : IAuthService
+    public class AuthService : IAuthService , IScopedService
     {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;

@@ -2,11 +2,12 @@
 using Microsoft.Extensions.Caching.Hybrid;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Markers;
 using TrendyolMiniApi.Models;
 
 namespace TrendyolMiniApi.Services
 {
-    public class ProductService : IProductService
+    public class ProductService : IProductService , IScopedService
     {
         private readonly ApplicationDbContext _context;
         private readonly IFileService _fileService;

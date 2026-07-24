@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Hosting; // IWebHostEnvironment için gerekli
+using Microsoft.AspNetCore.Hosting;
+using TrendyolMiniApi.Markers; // IWebHostEnvironment için gerekli
 
 namespace TrendyolMiniApi.Services
 {
-    public class FileService : IFileService
+    public class FileService : IFileService , IScopedService
     {
         private readonly IWebHostEnvironment _env;
 

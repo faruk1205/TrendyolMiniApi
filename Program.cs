@@ -1,6 +1,7 @@
 using Serilog;
 using TrendyolMiniApi.Extensions;
 using TrendyolMiniApi.Hubs;
+using TrendyolMiniApi.Markers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,13 +19,36 @@ builder.Host.UseSerilog();
 // 2. SERVİSLERİN KAYIT EDİLMESİ
 // ==========================================
 
-// A. Kendi yazdığımız iş servisleri (Scrutor ile otomatik taranır)
+
+
+//etiket yöntemi için marker dosyasında boş interface'ler tanımladık (Scrutor)
 builder.Services.Scan(scan => scan
+    .FromAssemblyOf<Program>()
+    
+    // 1. IScopedService etiketi olan TÜM sınıfları bul
+    .AddClasses(classes => classes.AssignableTo<IScopedService>())
+    .AsImplementedInterfaces()
+    .WithScopedLifetime()
+    
+    // 2. ITransientService etiketi olan TÜM sınıfları bul
+    .AddClasses(classes => classes.AssignableTo<ITransientService>())
+    .AsImplementedInterfaces()
+    .WithTransientLifetime()
+    
+    // 3. ISingletonService etiketi olan TÜM sınıfları bul
+    .AddClasses(classes => classes.AssignableTo<ISingletonService>())
+    .AsImplementedInterfaces()
+    .WithSingletonLifetime()
+);
+// A. Kendi yazdığımız iş servisleri (Scrutor ile otomatik taranır)
+/*builder.Services.Scan(scan => scan
     .FromAssemblyOf<Program>()
     .AddClasses(classes => classes.Where(type => type.Name.EndsWith("Service")))
     .AsImplementedInterfaces()
     .WithScopedLifetime()
 );
+*/
+
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();

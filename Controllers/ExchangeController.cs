@@ -5,24 +5,32 @@ using TrendyolMiniApi.Providers;
 
 namespace TrendyolMiniApi.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
     public class ExchangeController : BaseApiController
     {
-        private readonly IExchangeRateProvider _exchangeRateProvider;
-
-        public ExchangeController(IExchangeRateProvider exchangeRateProvider)
-        {
-            _exchangeRateProvider = exchangeRateProvider;
-        }
-
+        // DİKKAT: Artık tek bir nesne değil, Provider LİSTESİ alıyoruz
+        private readonly IEnumerable<IExchangeRateProvider> _providers;
+        
+        // URL'den hangi tipi istediğimizi parametre olarak alıyoruz (rest veya soap)
         [HttpGet("usd-to-try")]
-        // Dikkat: IActionResult veya Ok() yok, doğrudan tipi dönüyoruz!
-        public async Task<BaseResponseDto<decimal>> GetUsdToTryRate()
+        public async Task<IActionResult> GetUsdToTryRate([FromQuery] string type = "REST")
         {
-            decimal currentRate = await _exchangeRateProvider.GetTryExchangeRateAsync("USD");
+            // İstemci "SOAP" gönderdiyse listeden SOAP olanı, "REST" gönderdiyse REST olanı bul!
+            var selectedProvider = _providers.FirstOrDefault(p =>
+                p.ProviderType.Equals(type, StringComparison.OrdinalIgnoreCase));
 
-            return BaseResponseDto<decimal>.SuccessResult(currentRate, "Canlı dolar kuru başarıyla getirildi.");
+            if (selectedProvider == null)
+            {
+                return BadRequest("Geçersiz sağlayıcı tipi. 'REST' veya 'SOAP' gönderin.");
+            }
+
+            // Seçtiğimiz provider hangisiyse, onun içindeki metot çalışacak!
+            decimal currentRate = await selectedProvider.GetTryExchangeRateAsync("USD");
+
+            return Ok(new
+            {
+                Provider = selectedProvider.ProviderType,
+                Rate = currentRate
+            });
         }
     }
 }

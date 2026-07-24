@@ -115,21 +115,34 @@ namespace TrendyolMiniApi.Extensions
         // 6. HTTP CLIENT VE DIŞ API AYARLARI
         public static IServiceCollection AddHttpClientsInfrastructure(this IServiceCollection services)
         {
-            // Typed Client mantığı burada devreye giriyor!
-            services.AddHttpClient<IExchangeRateProvider, ExchangeRateProvider>(client =>
+            // 1. REST Provider'ı çantaya ekle
+            services.AddHttpClient<IExchangeRateProvider, RestExchangeRateProvider>(client =>
             {
                 // Dış API'nin ana adresini burada tanımlıyoruz
                 client.BaseAddress = new Uri("https://api.exchangerate-api.com/v4/");
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
+                //Bu satır, API'ye gönderilen HTTP isteğine bir Accept header'ı ekler. "Bu isteğe vereceğin cevabı mümkünse JSON formatında gönder."
                 
                 // API 5 saniye içinde cevap vermezse bekleme, bağlantıyı kes!
                 client.Timeout = TimeSpan.FromSeconds(5);
+            });
+            
+            // 2. SOAP Provider'ı çantaya ekle
+            services.AddHttpClient<IExchangeRateProvider, SoapExchangeRateProvider>(client =>
+            {
+                // Merkez Bankası günlük kur adresi
+                client.BaseAddress = new Uri("https://www.tcmb.gov.tr/"); 
+                client.Timeout = TimeSpan.FromSeconds(15);
+
             });
 
             return services;
         }
     }
 }
+
+//this Kelimesinin Sihri: Bir metodun ilk parametresinin başına this koyduğunda, o metodu IServiceCollection tipindeki nesnelere yama yapmış olursun.
+//Böylece Microsoft'un kendi yazdığı AddControllers() veya AddSignalR() metotları nasıl builder.Services. yazınca çıkıyorsa, senin yazdığın metotlar da aynı listede çıkar. Sisteme kendi özel komutlarını öğretmiş oldun.
 /*this IServiceCollection services Ne Oluyor?
 İşte bütün sihrin gerçekleştiği yer burasıdır. C# dilinde bir metodun ilk parametresinin başına this kelimesini koyarsan, derleyiciye şu emri verirsin:
 "Bu metodu al ve IServiceCollection tipindeki nesnelerin orijinal bir özelliğiymiş gibi ona yapıştır."

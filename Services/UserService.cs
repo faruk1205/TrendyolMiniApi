@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Markers;
 
 namespace TrendyolMiniApi.Services
 {
-    public class UserService : IUserService
+    public class UserService : IUserService , IScopedService
     {
         private readonly ApplicationDbContext _context;
 

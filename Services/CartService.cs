@@ -1,11 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Markers;
 using TrendyolMiniApi.Models;
 
 namespace TrendyolMiniApi.Services
 {
-    public class CartService : ICartService
+    public class CartService : ICartService , IScopedService
     {
         private readonly ApplicationDbContext _context;
 
