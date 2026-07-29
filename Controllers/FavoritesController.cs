@@ -9,17 +9,19 @@ namespace TrendyolMiniApi.Controllers
     public class FavoritesController : BaseApiController
     {
         private readonly IFavoriteService _favoriteService;
+        private readonly CurrentUser _currentUser;
 
-        public FavoritesController(IFavoriteService favoriteService)
+        public FavoritesController(IFavoriteService favoriteService, CurrentUser currentUser)
         {
             _favoriteService = favoriteService;
+            _currentUser = currentUser;
         }
 
         // 1. POST: Kusursuz! Doğrudan BaseResponseDto dönüyoruz.
         [HttpPost]
         public async Task<BaseResponseDto> AddToFavorites(FavoriteAddDto request)
         {
-            await _favoriteService.AddToFavoritesAsync(request, CurrentUserId);
+            await _favoriteService.AddToFavoritesAsync(request,_currentUser.Id );
             
             return BaseResponseDto.SuccessResult("Ürün favorilere eklendi!");
         }
@@ -28,7 +30,7 @@ namespace TrendyolMiniApi.Controllers
         [HttpGet]
         public async Task<BaseResponseDto<List<ProductResponseDto>>> GetMyFavorites()
         {
-            var favorites = await _favoriteService.GetMyFavoritesAsync(CurrentUserId);
+            var favorites = await _favoriteService.GetMyFavoritesAsync(_currentUser.Id);
             
             return BaseResponseDto<List<ProductResponseDto>>.SuccessResult(favorites, "Favoriler başarıyla listelendi.");
         }
@@ -37,7 +39,7 @@ namespace TrendyolMiniApi.Controllers
         [HttpDelete("{productId}")]
         public async Task<BaseResponseDto> RemoveFromFavorites(int productId)
         {
-            await _favoriteService.RemoveFromFavoritesAsync(productId, CurrentUserId);
+            await _favoriteService.RemoveFromFavoritesAsync(productId, _currentUser.Id);
             
             return BaseResponseDto.SuccessResult("Ürün favorilerden çıkarıldı.");
         }

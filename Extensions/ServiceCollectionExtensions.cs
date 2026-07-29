@@ -6,6 +6,8 @@ using System.Text;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.Middlewares;
 using TrendyolMiniApi.Providers;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 namespace TrendyolMiniApi.Extensions
 {
@@ -43,19 +45,30 @@ namespace TrendyolMiniApi.Extensions
         // 2. JWT VE KİMLİK DOĞRULAMA AYARLARI (Configuration istiyor)
         public static IServiceCollection AddJwtInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
+            // 1. Kapıdaki güvenliğe vereceğimiz ŞİFRE ÇÖZME anahtarını hazırlıyoruz
+            var encryptionKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                configuration.GetSection("JwtSettings:EncryptionKey").Value!));
+
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
+                        // Mühür kontrolü (Eski ayarların)
                         ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration.GetSection("JwtSettings:Secret").Value!)),
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                            configuration.GetSection("JwtSettings:Secret").Value!)),
+                
+                        // YENİ VE KRİTİK EKLENTİ: Kasayı (JWE) açacak olan kilit
+                        TokenDecryptionKey = encryptionKey, 
+                
                         ValidateIssuer = true,
                         ValidIssuer = configuration.GetSection("JwtSettings:Issuer").Value,
                         ValidateAudience = true,
                         ValidAudience = configuration.GetSection("JwtSettings:Audience").Value,
                         ValidateLifetime = true
                     };
+            
                     options.Events = new JwtBearerEvents
                     {
                         OnMessageReceived = context =>
@@ -70,6 +83,7 @@ namespace TrendyolMiniApi.Extensions
                         }
                     };
                 });
+        
             return services;
         }
 
@@ -116,7 +130,7 @@ namespace TrendyolMiniApi.Extensions
         public static IServiceCollection AddHttpClientsInfrastructure(this IServiceCollection services)
         {
             // 1. REST Provider'ı çantaya ekle
-            services.AddHttpClient<IExchangeRateProvider, RestExchangeRateProvider>(client =>
+            services.AddHttpClient<IExchangeRateProvider,RestJsonExchangeRateProvider>(client =>
             {
                 // Dış API'nin ana adresini burada tanımlıyoruz
                 client.BaseAddress = new Uri("https://api.exchangerate-api.com/v4/");
@@ -128,13 +142,30 @@ namespace TrendyolMiniApi.Extensions
             });
             
             // 2. SOAP Provider'ı çantaya ekle
-            services.AddHttpClient<IExchangeRateProvider, SoapExchangeRateProvider>(client =>
+            services.AddHttpClient<IExchangeRateProvider, RestXmlExchangeRateProvider>(client =>
             {
                 // Merkez Bankası günlük kur adresi
                 client.BaseAddress = new Uri("https://www.tcmb.gov.tr/"); 
                 client.Timeout = TimeSpan.FromSeconds(15);
 
             });
+
+            return services;
+        }
+
+        
+        //Hangfire, .NET uygulamalarında arka planda (background) çalışan işleri zamanlamak, kuyruğa almak ve yönetmek için kullanılan açık kaynaklı bir kütüphanedir.
+        public static IServiceCollection AddHangfireInfrastructure(this IServiceCollection services, IConfiguration configuration)
+        {
+            // 1. Hangfire ayarlarını ve veritabanı bağlantısını tanımlıyoruz
+            services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UsePostgreSqlStorage(configuration.GetConnectionString("DefaultConnection"))); // Veritabanı adresimiz
+
+            // 2. Arka plan işlerini çalıştıracak olan "Hangfire Server" motorunu çalıştırıyoruz
+            services.AddHangfireServer();
 
             return services;
         }

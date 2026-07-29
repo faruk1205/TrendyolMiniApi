@@ -8,6 +8,8 @@ using TrendyolMiniApi.DTOs;
 using TrendyolMiniApi.Enums;
 using TrendyolMiniApi.Models;
 using TrendyolMiniApi.Markers;
+using Microsoft.IdentityModel.JsonWebTokens;
+
 
 namespace TrendyolMiniApi.Services
 {
@@ -83,7 +85,6 @@ namespace TrendyolMiniApi.Services
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
             await _context.SaveChangesAsync();
         }
-
         private string CreateToken(User user)
         {
             var claims = new List<Claim>
@@ -93,20 +94,92 @@ namespace TrendyolMiniApi.Services
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+            // 1. İmzalama Anahtarı (Tokenın değiştirilmediğini doğrular)
+            var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
                 _configuration.GetSection("JwtSettings:Secret").Value!));
+    
+            var signingCreds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256Signature);
 
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+            // 2. Şifreleme Anahtarı (Claim verilerini okunmaz hale getirir - Mutlaka 32 byte/karakter olmalı)
+            var encryptionKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                _configuration.GetSection("JwtSettings:EncryptionKey").Value!));
+        
+            
+            //Bu satır, JWT'nin okunamaması için hangi anahtar ve hangi şifreleme algoritmalarıyla şifreleneceğini belirler.
+            var encryptingCreds = new EncryptingCredentials(encryptionKey, 
+                SecurityAlgorithms.Aes256KW, 
+                SecurityAlgorithms.Aes256CbcHmacSha512);
+            //JwtKeyWrapAlgorithms.Aes256 anahtarın nasıl korunacağını belirleyen algoritmadır
+            //SecurityAlgorithms.Aes256CbcHmacSha512 bu ise veriyi gerçekten şifreleyen algoritmadır
+            
 
-            var token = new JwtSecurityToken(
-                issuer: _configuration.GetSection("JwtSettings:Issuer").Value,
-                audience: _configuration.GetSection("JwtSettings:Audience").Value,
-                claims: claims,
-                expires: DateTime.Now.AddDays(1),
-                signingCredentials: creds
-            );
+            // 3. Token Tanımlayıcı (Modern yaklaşım)
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims), //claim listesi buraya geliyor.JWT payloadı buradan oluştuturur.
+                Expires = DateTime.UtcNow.AddDays(1),
+                Issuer = _configuration.GetSection("JwtSettings:Issuer").Value,
+                Audience = _configuration.GetSection("JwtSettings:Audience").Value,
+                SigningCredentials = signingCreds,
+                EncryptingCredentials = encryptingCreds // !!!!!Kritik yer burası 
+                //Bu satırı eklediğinde JWT oluşturulurken token JWE olarak şifrelenir. encryptingCreds ise bir önceki satırda hangi anahtar ve algoritmalarla şifreleneceğini belirleyen bilgileri taşır.
+                //normalde JWT'de header->payload->imzalanır->token   OLUŞURDU AMA BURADA   claimler->imzalanır-> şifrelenir-> token oluşur
+            };
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            // 4. Token'ı Oluştur
+            var handler = new JsonWebTokenHandler();
+            return handler.CreateToken(tokenDescriptor);
         }
+       
     }
 }
+
+/*private string CreateToken(User user)
+       {
+           var claims = new List<Claim>
+           {
+               new Claim(ClaimTypes.Name, user.Username),
+               new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+               new Claim(ClaimTypes.Role, user.Role.ToString())
+           };
+
+           var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+               _configuration.GetSection("JwtSettings:Secret").Value!));
+
+           var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);  
+
+           var token = new JwtSecurityToken(
+               issuer: _configuration.GetSection("JwtSettings:Issuer").Value,
+               audience: _configuration.GetSection("JwtSettings:Audience").Value,
+               claims: claims,
+               expires: DateTime.Now.AddDays(1),
+               signingCredentials: creds
+           );
+
+           return new JwtSecurityTokenHandler().WriteToken(token);
+       }*/
+
+//buradaki amaç sunucumdaki secret'ımla key oluşturup. Kullanıcı bilgisiyle bu keyi alıp öyle tokenı imzalamak. Bu sayede dışarıdan tokena erişsen biri keyi asla bilemediği için tokenı görüntüleyebilir ama asle değiştiremez.
+// dışarıdan biri tokendan bilgileri görüntüleyebiliyor çünkü jwt payload kısmı şifrelenmez, sadece imzalanır. Yani token'ın değiştirilmediği garanti edilir ama içindeki bilgiler gizli değildir.
+//JWT 3 parçadan oluşur Header, Payload, Signature 
+// Header ilk kısım algoritma bilgisini içerir : 
+    /*{
+  "alg": "HS512",
+  "typ": "JWT"
+    }*/
+//Payload ikinci kısım kullanıcı bilgilerini içerir.:
+    /*{
+        "sub": "123",
+        "name": "Ahmet",
+        "role": "Admin"
+    }*/
+//üçüncü kısım signature, bu da bizim kodda oluşturduğumuz imzadır. Yaklaşık olarak bu mantıkla hesaplanır. Buradaki secret key sadece sunucuda bulunur.
+    /*
+    HMACSHA512(
+    Header + "." + Payload,
+    SecretKey
+    )
+    */
+//Peki biri payload'ı okuyabiliyorsa güvenlik açığı yok mu? Hayır. Çünkü JWT'nin amacı veriyi gizlemek değil, verinin değiştirilmediğini kanıtlamaktır.İşte değiştirelememesinin sebebide imza mantığı.
+      
+       

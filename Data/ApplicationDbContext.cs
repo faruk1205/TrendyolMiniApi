@@ -1,4 +1,5 @@
 ﻿    using Microsoft.EntityFrameworkCore;
+    using TrendyolMiniApi.Entities;
     using TrendyolMiniApi.Models;
 
     namespace TrendyolMiniApi.Data
@@ -17,6 +18,8 @@
             public DbSet<Message> Messages { get; set; }
             
             public DbSet<CartItem> CartItems { get; set; }
+            
+            public DbSet<ExchangeRate> ExchangeRates { get; set; }
             
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)

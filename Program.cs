@@ -1,7 +1,9 @@
+using Hangfire;
 using Serilog;
 using TrendyolMiniApi.Extensions;
 using TrendyolMiniApi.Hubs;
 using TrendyolMiniApi.Markers;
+using TrendyolMiniApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,16 +30,19 @@ builder.Services.Scan(scan => scan
     // 1. IScopedService etiketi olan TÜM sınıfları bul
     .AddClasses(classes => classes.AssignableTo<IScopedService>())
     .AsImplementedInterfaces()
+    .AsSelf() // İnterface'siz servisler için  Kendi adıyla da çağırılabilmesini sağlar.
     .WithScopedLifetime()
     
     // 2. ITransientService etiketi olan TÜM sınıfları bul
     .AddClasses(classes => classes.AssignableTo<ITransientService>())
     .AsImplementedInterfaces()
+    .AsSelf() 
     .WithTransientLifetime()
     
     // 3. ISingletonService etiketi olan TÜM sınıfları bul
     .AddClasses(classes => classes.AssignableTo<ISingletonService>())
     .AsImplementedInterfaces()
+    .AsSelf() 
     .WithSingletonLifetime()
 );
 // A. Kendi yazdığımız iş servisleri (Scrutor ile otomatik taranır)
@@ -60,6 +65,7 @@ builder.Services.AddDatabaseInfrastructure(builder.Configuration);
 builder.Services.AddCachingInfrastructure();
 builder.Services.AddExceptionHandlingInfrastructure();
 builder.Services.AddHttpClientsInfrastructure();
+builder.Services.AddHangfireInfrastructure(builder.Configuration);
 
 // ==========================================
 // 3. UYGULAMANIN İNŞASI VE ARA YAZILIMLAR (MIDDLEWARE)
@@ -79,7 +85,27 @@ app.UseHttpsRedirection();
 app.UseAuthentication(); 
 app.UseAuthorization();
 
+// Bizim yazdığımız, Claim'leri DTO'ya çeviren middleware
+app.UseMiddleware<UserContextMiddleware>();
+
 app.MapControllers();
 app.MapHub<ChatHub>("/chathub"); // Canlı sohbet telsizi
 
+
+// 1. Hangfire Kontrol Panelini aktif et (Tarayıcıdan /hangfire adresine girerek izleyebilirsin)
+//app.UseHangfireDashboard("/hangfire");
+
+// 2. İşçiyi (Job) programla! 
+//RecurringJob, Hangfire'ın tekrarlayan (Recurring) işleri yönetmek için kullandığı statik sınıftır.
+//AddOrUpdate(...), Add → Eğer görev yoksa oluştur. Update → Aynı isimde görev varsa ayarlarını güncelle.
+//<ICurrencySyncService> ,"Bu işi çalıştırırken ICurrencySyncService servisini Dependency Injection container'dan al." arka planda "builder.Services.AddScoped<ICurrencySyncService, CurrencySyncService>();" gibi bir işlem yapar.
+//"kur-guncelleme-gorevi" ,Bu görevin benzersiz kimliği (Job Id)'dir. Dashboard'da bu isim görünür.
+//service => service.SyncUsdRateAsync(), Bu bir Lambda Expression'dır. Parametre "service" aslında "ICurrencySyncService service" nesnesidir.
+//Cron.MinuteInterval(5), Bu zamanlama bilgisidir. her 5 dakikada bir çalıştır. demektir.
+
+/*RecurringJob.AddOrUpdate<ICurrencySyncService>(
+    "kur-guncelleme-gorevi", 
+    service => service.SyncUsdRateAsync(), 
+    Cron.MinuteInterval(5) 
+);*/
 app.Run();

@@ -9,17 +9,19 @@ namespace TrendyolMiniApi.Controllers
     public class CartController : BaseApiController
     {
         private readonly ICartService _cartService;
+        private readonly CurrentUser _currentUser;
 
-        public CartController(ICartService cartService)
+        public CartController(ICartService cartService, CurrentUser currentUser)
         {
             _cartService = cartService;
+            _currentUser = currentUser;
         }
 
         // 1. POST: Ürün ekleme. Sadece standart çerçeve döner. Ok() sarmalayıcısı yok.
         [HttpPost]
         public async Task<BaseResponseDto> AddToCart(CartAddDto request)
         {
-            await _cartService.AddToCartAsync(request, CurrentUserId);
+            await _cartService.AddToCartAsync(request, _currentUser.Id);
             
             return BaseResponseDto.SuccessResult("Ürün sepetinize eklendi.");
         }
@@ -28,7 +30,7 @@ namespace TrendyolMiniApi.Controllers
         [HttpGet]
         public async Task<BaseResponseDto<CartDetailResponseDto>> GetMyCart()
         {
-            var cart = await _cartService.GetMyCartAsync(CurrentUserId);
+            var cart = await _cartService.GetMyCartAsync(_currentUser.Id);
             
             return BaseResponseDto<CartDetailResponseDto>.SuccessResult(cart, "Sepet başarıyla getirildi.");
         }
@@ -37,7 +39,7 @@ namespace TrendyolMiniApi.Controllers
         [HttpPost("checkout")]
         public async Task<BaseResponseDto<int>> Checkout()
         {
-            int orderId = await _cartService.CheckoutAsync(CurrentUserId);
+            int orderId = await _cartService.CheckoutAsync(_currentUser.Id);
             
             return BaseResponseDto<int>.SuccessResult(orderId, "Siparişiniz başarıyla alındı! Sepetiniz temizlendi.");
         }

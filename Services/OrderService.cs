@@ -1,16 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Entities;
 using TrendyolMiniApi.Markers;
 using TrendyolMiniApi.Models;
+using TrendyolMiniApi.Calculator; // Doğru namespace eklendi
 
 namespace TrendyolMiniApi.Services
+
 {
     public class OrderService : IOrderService , IScopedService
     {
         private readonly ApplicationDbContext _context;
-        public OrderService(ApplicationDbContext context)
         
+        public OrderService(ApplicationDbContext context)
         {
             _context = context;
         }
@@ -26,12 +29,23 @@ namespace TrendyolMiniApi.Services
             if (product.Stock < request.Quantity)
                 throw new InvalidOperationException($"Yetersiz stok! Bu üründen sadece {product.Stock} adet kaldı.");
 
-            // 2. Siparişi ve Kalemini Tek Seferde Oluştur
+            // ---------------------------------------------------------
+            // 2. DOĞRUDAN SOAP API KULLANIMI
+            // İstemciyi ayağa kaldırıyoruz
+            using var soapClient = new CalculatorSoapClient(CalculatorSoapClient.EndpointConfiguration.CalculatorSoap);
+            
+            // DİKKAT: Metot artık doğrudan int döndüğü için direkt değişkene atıyoruz.
+            // Body veya MultiplyResult aramamıza gerek kalmadı.
+            var hesaplananToplamTutar = await soapClient.MultiplyAsync((int)product.Price, request.Quantity);
+            // ---------------------------------------------------------
+
+            // 3. Siparişi ve Kalemini Tek Seferde Oluştur
             var order = new Order
             {
                 UserId = customerId,
                 CreatedDate = DateTime.UtcNow,
-                TotalAmount = product.Price * request.Quantity,
+                TotalPrice = hesaplananToplamTutar, // SOAP'tan gelen sonucu buraya yazdık
+                TotalAmount = request.Quantity,
                 OrderItems = new List<OrderItem>
                 {
                     new OrderItem
@@ -45,10 +59,10 @@ namespace TrendyolMiniApi.Services
 
             _context.Orders.Add(order);
 
-            // 3. Stoktan düş
+            // 4. Stoktan düş
             product.Stock -= request.Quantity;
 
-            // 4. Kaydet
+            // 5. Kaydet
             await _context.SaveChangesAsync();
 
             return order.Id;

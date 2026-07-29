@@ -142,5 +142,24 @@ namespace TrendyolMiniApi.Services
                 cancellationToken: cancellationToken
             );
         }
+
+        public async Task<ProductResponseDto> GetProductDetail(int ProductId)
+        {
+            //Where(), koleksiyonu filtreler. FirstOrDefault() ise filtrelenmiş koleksiyonun ilk elemanını alır.
+            var product = await _context.Products
+                .Where(p => p.Id == ProductId)
+                .Select(p => new ProductResponseDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    Price = p.Price,
+                    Stock = p.Stock,
+                    ImageUrl = p.ImagePath,
+                    CategoryName = p.Category != null ? p.Category.Name : "Kategorisiz",
+                    SellerName = p.Seller.Username,
+                }).FirstOrDefaultAsync();
+            return product;
+        }
     }
 }

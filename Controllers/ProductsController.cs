@@ -8,10 +8,12 @@ namespace TrendyolMiniApi.Controllers
     public class ProductsController : BaseApiController
     {
         private readonly IProductService _productService;
+        private readonly CurrentUser _currentUser;
 
-        public ProductsController(IProductService productService)
+        public ProductsController(IProductService productService, CurrentUser currentUser)
         {
             _productService = productService;
+            _currentUser = currentUser;
         }
 
         [HttpPost]
@@ -19,7 +21,7 @@ namespace TrendyolMiniApi.Controllers
         // 1. IActionResult kalktı, doğrudan BaseResponseDto<int> dönüyoruz.
         public async Task<BaseResponseDto<int>> CreateProduct([FromForm] ProductCreateDto request)
         {
-            int newProductId = await _productService.CreateProductAsync(request, CurrentUserId);
+            int newProductId = await _productService.CreateProductAsync(request, _currentUser.Id);
             
             return BaseResponseDto<int>.SuccessResult(newProductId, "Ürün başarıyla vitrine eklendi!");        
         }
@@ -39,7 +41,7 @@ namespace TrendyolMiniApi.Controllers
         public async Task<BaseResponseDto> DeleteProduct(int id)
         {
             // Eğer ürün yoksa veya yetki yoksa, servis 'throw new' diyecek ve GlobalExceptionHandler bunu halledecek.
-            await _productService.DeleteProductAsync(id, CurrentUserId);
+            await _productService.DeleteProductAsync(id, _currentUser.Id);
             
             return BaseResponseDto.SuccessResult("Ürün başarıyla vitrinden kaldırıldı.");
         }
@@ -51,6 +53,12 @@ namespace TrendyolMiniApi.Controllers
             var showcaseData = await _productService.GetShowcaseProductsAsync(cancellationToken);
 
             return BaseResponseDto<object>.SuccessResult(showcaseData, "Vitrin ürünleri başarıyla getirildi.");
+        }
+
+        [HttpGet("{id}")]
+        public async Task<BaseResponseDto<ProductResponseDto>> GetProductId(int id)
+        {
+            return BaseResponseDto<ProductResponseDto>.SuccessResult(await _productService.GetProductDetail(id));
         }
     }
 }

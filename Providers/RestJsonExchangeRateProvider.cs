@@ -2,13 +2,13 @@
 
 namespace TrendyolMiniApi.Providers
 {
-    public class RestExchangeRateProvider : IExchangeRateProvider
+    public class RestJsonExchangeRateProvider : IExchangeRateProvider
     {
-        public string ProviderType => "REST";
+        public string ProviderType => "RestJson";
         private readonly HttpClient _httpClient;
 
         // KİLİT NOKTA: HttpClient doğrudan .NET tarafından buraya enjekte ediliyor!
-        public RestExchangeRateProvider(HttpClient httpClient)
+        public RestJsonExchangeRateProvider(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }

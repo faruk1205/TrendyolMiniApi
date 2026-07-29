@@ -10,10 +10,12 @@ namespace TrendyolMiniApi.Controllers
     public class AuthController : BaseApiController
     {
         private readonly IAuthService _authService;
+        private readonly CurrentUser _currentUser;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, CurrentUser currentUser)
         {
             _authService = authService;
+            _currentUser = currentUser;
         }
 
         // 1. REGISTER: IActionResult yerine doğrudan BaseResponseDto dönüyoruz. Ok() sarmalayıcısı yok.
@@ -39,7 +41,7 @@ namespace TrendyolMiniApi.Controllers
         [Authorize]
         public async Task<BaseResponseDto> ChangePassword([FromBody] PasswordChangeDto request)
         {
-            await _authService.ChangePasswordAsync(request, CurrentUserId);
+            await _authService.ChangePasswordAsync(request, _currentUser.Id);
             
             return BaseResponseDto.SuccessResult("Şifreniz başarıyla değiştirildi. Yeni şifrenizle giriş yapabilirsiniz.");
         }

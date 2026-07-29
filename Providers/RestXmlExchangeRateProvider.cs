@@ -2,14 +2,14 @@
 
 namespace TrendyolMiniApi.Providers
 {
-    public class SoapExchangeRateProvider : IExchangeRateProvider
+    public class RestXmlExchangeRateProvider : IExchangeRateProvider
     {
         // Bunun kimliğini SOAP olarak belirliyoruz
-        public string ProviderType => "SOAP";
+        public string ProviderType => "RestXml";
 
         private readonly HttpClient _httpClient;
 
-        public SoapExchangeRateProvider(HttpClient httpClient)
+        public RestXmlExchangeRateProvider(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }

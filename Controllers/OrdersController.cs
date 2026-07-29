@@ -9,17 +9,19 @@ namespace TrendyolMiniApi.Controllers
     public class OrdersController : BaseApiController
     {
         private readonly IOrderService _orderService;
+        private readonly CurrentUser _currentUser;
 
-        public OrdersController(IOrderService orderService)
+        public OrdersController(IOrderService orderService, CurrentUser currentUser)
         {
             _orderService = orderService;
+            _currentUser = currentUser;
         }
 
         // 1. POST: IActionResult çöpe atıldı. Dönüş tipi int olarak eşitlendi.
         [HttpPost]
         public async Task<BaseResponseDto<int>> CreateOrder(OrderCreateDto request)
         {
-            int orderId = await _orderService.CreateOrderAsync(request, CurrentUserId);
+            int orderId = await _orderService.CreateOrderAsync(request, _currentUser.Id);
             
             // Ok() yok, doğrudan int taşıyan BaseResponseDto fırlatıyoruz.
             return BaseResponseDto<int>.SuccessResult(orderId, "Siparişiniz başarıyla alındı!");
@@ -29,7 +31,7 @@ namespace TrendyolMiniApi.Controllers
         [HttpGet]
         public async Task<BaseResponseDto<List<OrderResponseDto>>> GetMyOrders()
         {
-            var orders = await _orderService.GetMyOrdersAsync(CurrentUserId);
+            var orders = await _orderService.GetMyOrdersAsync(_currentUser.Id);
             
             return BaseResponseDto<List<OrderResponseDto>>.SuccessResult(orders, "Siparişleriniz başarıyla getirildi.");
         }

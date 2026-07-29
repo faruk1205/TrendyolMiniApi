@@ -8,5 +8,6 @@ namespace TrendyolMiniApi.Services
         Task<ProductPagedResponseDto> GetProductsAsync(ProductQueryParameters query, CancellationToken cancellationToken);
         Task DeleteProductAsync(int id, int sellerId);
         Task<object> GetShowcaseProductsAsync(CancellationToken cancellationToken);
+        Task<ProductResponseDto> GetProductDetail(int id);
     }
 }
