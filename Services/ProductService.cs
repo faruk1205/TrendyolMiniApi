@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
@@ -12,19 +13,35 @@ namespace TrendyolMiniApi.Services
         private readonly ApplicationDbContext _context;
         private readonly IFileService _fileService;
         private readonly HybridCache _hybridCache;
+        private readonly IMapper _mapper;
 
         // Bütün araç gereçleri (Bağımlılıkları) Servisimize veriyoruz
-        public ProductService(ApplicationDbContext context, IFileService fileService, HybridCache hybridCache)
+        public ProductService(ApplicationDbContext context, IFileService fileService, HybridCache hybridCache,IMapper mapper)
         {
             _context = context;
             _fileService = fileService;
             _hybridCache = hybridCache;
+            _mapper = mapper;
         }
 
         public async Task<int> CreateProductAsync(ProductCreateDto request, int sellerId)
         {
-            string imagePath = await _fileService.SaveImageAsync(request.Image, "products");
+                // 1. Resmi sunucuya/buluta kaydet ve yolunu (path) al
+                string imagePath = await _fileService.SaveImageAsync(request.Image, "products");
 
+                // 2. SİHİR BURADA: DTO içindeki standart verileri (Name, Price, Stock vb.) otomatik eşleştir
+                var product = _mapper.Map<Product>(request);
+
+                // 3. EKSİKLERİ TAMAMLA: DTO'da olmayan, dışarıdan gelen özel verileri nesneye ekle
+                product.SellerId = sellerId;
+                product.ImagePath = imagePath;
+
+                // 4. Veritabanına kaydet
+                _context.Products.Add(product);
+                await _context.SaveChangesAsync();
+
+                return product.Id;
+            /*string imagePath = await _fileService.SaveImageAsync(request.Image, "products");
             var product = new Product
             {
                 Name = request.Name,
@@ -35,11 +52,9 @@ namespace TrendyolMiniApi.Services
                 SellerId = sellerId, // Controller'dan parametre olarak geldi
                 ImagePath = imagePath
             };
-
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
-
-            return product.Id;
+            return product.Id;*/
         }
 
         public async Task<ProductPagedResponseDto> GetProductsAsync(ProductQueryParameters query, CancellationToken cancellationToken)
@@ -144,9 +159,16 @@ namespace TrendyolMiniApi.Services
         }
 
         public async Task<ProductResponseDto> GetProductDetail(int ProductId)
-        {
-            //Where(), koleksiyonu filtreler. FirstOrDefault() ise filtrelenmiş koleksiyonun ilk elemanını alır.
-            var product = await _context.Products
+        {   
+            var product = await _context.Products.FindAsync(ProductId);
+    
+            if (product == null) 
+                return null;
+
+            // SİHİR BURADA: "product nesnesini al ve ProductResponseDto tipine dönüştür"
+            return _mapper.Map<ProductResponseDto>(product);
+            
+            /*var product = await _context.Products
                 .Where(p => p.Id == ProductId)
                 .Select(p => new ProductResponseDto
                 {
@@ -159,7 +181,7 @@ namespace TrendyolMiniApi.Services
                     CategoryName = p.Category != null ? p.Category.Name : "Kategorisiz",
                     SellerName = p.Seller.Username,
                 }).FirstOrDefaultAsync();
-            return product;
+            return product;*/
         }
     }
 }

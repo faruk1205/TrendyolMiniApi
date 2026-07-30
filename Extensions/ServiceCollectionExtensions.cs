@@ -8,6 +8,8 @@ using TrendyolMiniApi.Middlewares;
 using TrendyolMiniApi.Providers;
 using Hangfire;
 using Hangfire.PostgreSql;
+using TrendyolMiniApi.Mappings;
+
 
 namespace TrendyolMiniApi.Extensions
 {
@@ -167,6 +169,19 @@ namespace TrendyolMiniApi.Extensions
             // 2. Arka plan işlerini çalıştıracak olan "Hangfire Server" motorunu çalıştırıyoruz
             services.AddHangfireServer();
 
+            return services;
+        }
+        
+        public static IServiceCollection AddMappingInfrastructure(this IServiceCollection services)
+        {
+            // AutoMapper'a doğrudan bir Action (yapılandırma bloğu) veriyoruz
+            //cfg burda sadece bir lambda ifadesi yerine başka bir şey yazabilirdin. AutoMapper'ın yapılandırma nesnesidir. yani AutoMapper'a nasıl çalılşacağını söylüyoruz.
+            services.AddAutoMapper(cfg => 
+            {
+                // AutoMapper'a MappingProfile isimli profilimi kullan.
+                cfg.AddProfile<MappingProfile>();
+            });
+    
             return services;
         }
     }

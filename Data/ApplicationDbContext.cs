@@ -68,7 +68,8 @@
                 
                 // 2. KURAL: Parasal değerlerin (decimal) SQL'de ne kadar yer kaplayacağını belirtiyoruz (Uyarıları gizler)
                 modelBuilder.Entity<Product>().Property(p => p.Price).HasColumnType("decimal(18,2)");
-                modelBuilder.Entity<Order>().Property(o => o.TotalAmount).HasColumnType("decimal(18,2)");                modelBuilder.Entity<OrderItem>().Property(oi => oi.UnitPrice).HasColumnType("decimal(18,2)");
+                modelBuilder.Entity<Order>().Property(o => o.TotalAmount).HasColumnType("decimal(18,2)");                
+                modelBuilder.Entity<OrderItem>().Property(oi => oi.UnitPrice).HasColumnType("decimal(18,2)");
 
                 // 3. KURAL: Canlı Chat (Message) tablosu için kritik "Kaskad Silme" engeli!
                 // Bir kullanıcıyı silersek, ona ait mesajlar otomatik SİLİNMESİN, yoksa SQL hata verir.

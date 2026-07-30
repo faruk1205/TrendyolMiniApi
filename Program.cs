@@ -66,6 +66,7 @@ builder.Services.AddCachingInfrastructure();
 builder.Services.AddExceptionHandlingInfrastructure();
 builder.Services.AddHttpClientsInfrastructure();
 builder.Services.AddHangfireInfrastructure(builder.Configuration);
+builder.Services.AddMappingInfrastructure();
 
 // ==========================================
 // 3. UYGULAMANIN İNŞASI VE ARA YAZILIMLAR (MIDDLEWARE)
