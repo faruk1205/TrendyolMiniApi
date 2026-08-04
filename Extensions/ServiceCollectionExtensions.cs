@@ -8,6 +8,7 @@ using TrendyolMiniApi.Middlewares;
 using TrendyolMiniApi.Providers;
 using Hangfire;
 using Hangfire.PostgreSql;
+using TrendyolMiniApi.Calculator;
 using TrendyolMiniApi.Mappings;
 
 
@@ -154,7 +155,19 @@ namespace TrendyolMiniApi.Extensions
 
             return services;
         }
+        
+        // 7. SOAP (DIŞ SERVİS) AYARLARI
+        public static IServiceCollection AddSoapClientInfrastructure(this IServiceCollection services)
+        {
+            // Sisteme CalculatorSoapClient'ı öğretiyoruz.
+            // AddScoped: Her yeni müşteri isteğinde (HTTP Request) sepet işlemleri için bu nesneden 1 tane üretilmesini sağlar.
+            services.AddScoped<CalculatorSoapClient>(sp => 
+            {
+                return new CalculatorSoapClient(CalculatorSoapClient.EndpointConfiguration.CalculatorSoap);
+            });
 
+            return services;
+        }
         
         //Hangfire, .NET uygulamalarında arka planda (background) çalışan işleri zamanlamak, kuyruğa almak ve yönetmek için kullanılan açık kaynaklı bir kütüphanedir.
         public static IServiceCollection AddHangfireInfrastructure(this IServiceCollection services, IConfiguration configuration)

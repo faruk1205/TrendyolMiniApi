@@ -45,8 +45,7 @@ namespace TrendyolMiniApi.Middlewares
 
             return true; 
         }
-            // return true: ben bu hatayı işledim  başka işlem yapma anlamına gelir.
-            // false dönseydi bu handler işlenmedi başka handler var mı ? diye devam ederdi.
+            // return true: ben bu hatayı işledim  başka işlem yapma anlamına gelir.  // false dönseydi bu handler işlenmedi başka handler var mı ? diye devam ederdi.
     }
 }
 
@@ -68,3 +67,12 @@ StackTrace:
 ProductService.GetById()
 ProductController.Get()
 ... GİBİ */ 
+
+/*Özet
+throw, bir hatayı fırlatır; kendisi yakalamaz.
+GlobalExceptionHandler yoksa, hata ASP.NET Core'un varsayılan mekanizmasına gider. Geliştirme ortamında ayrıntılı hata sayfası, üretimde ise çoğunlukla genel bir 500 Internal Server Error döner.
+GlobalExceptionHandler varsa, tüm yakalanmamış exception'lar TryHandleAsync metoduna gelir. Burada:
+Hata loglanır.
+Exception türüne göre uygun HTTP durum kodu seçilir (404, 400, 403, 500 vb.).
+İstemciye standart bir ProblemDetails JSON cevabı gönderilir.
+return true ile "Bu hatayı ben işledim, başka handler arama." denmiş olur.*/

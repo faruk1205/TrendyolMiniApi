@@ -3,7 +3,7 @@ using TrendyolMiniApi.Entities;
 
 namespace TrendyolMiniApi.Models
 {
-    public class Product : BaseEntity , ISoftDeletable
+    public class Product : SoftDeleteBaseEntity 
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
@@ -13,11 +13,8 @@ namespace TrendyolMiniApi.Models
         public int Stock { get; set; }
         public string ImagePath { get; set; } = string.Empty;
         
-        // ISoftDeletable arayüzünün zorunlu kıldığı alan
-        public bool IsDeleted { get; set; } = false;
-  
-        
-        // Foreign Keys
+      
+  // Foreign Keys
         public int CategoryId { get; set; }
         public Category? Category { get; set; }
 

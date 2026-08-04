@@ -32,8 +32,38 @@ namespace TrendyolMiniApi.Services
 
             await _context.SaveChangesAsync();
         }
-
+        
         public async Task DeleteMyAccountAsync(int userId)
+        {
+            // 1. Sadece kullanıcıyı değil, ona bağlı olan ve müdahale etmemiz gereken tabloları da çekiyoruz.
+            // DİKKAT: Siparişleri (Orders) bilerek çekmedik, çünkü onlara hiç dokunmayacağız!
+            var user = await _context.Users
+                .Include(u => u.Products)
+                .Include(u => u.Favorites)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                throw new KeyNotFoundException("Kullanıcı bulunamadı.");
+
+            // 2. Favorileri veritabanından tamamen uçur (Hard Delete)
+            // Favorites modeli ISoftDeletable olmadığı için Interceptor bunlara dokunmaz, gerçekten silinir.
+            _context.Favorites.RemoveRange(user.Favorites);
+
+            // 3. Eğer bu kişi bir satıcıysa, dükkanındaki tüm ürünleri yayından kaldır (Soft Delete)
+            foreach (var product in user.Products)
+            {
+                // Interceptor'ımız bu komutu havada yakalayıp ürünleri de IsDeleted = true yapacak!
+                _context.Products.Remove(product);
+            }
+
+            // 4. Son olarak kullanıcının kendisini pasife al (Soft Delete)
+            _context.Users.Remove(user);
+
+            // 5. Bütün bu işlemleri tek bir Transaction (işlem) paketi olarak veritabanına gönder
+            await _context.SaveChangesAsync();
+        }
+        
+        /*public async Task DeleteMyAccountAsync(int userId)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -49,6 +79,6 @@ namespace TrendyolMiniApi.Services
                 // Trendyol kuralı: Fatura veya mesaj geçmişi olduğu için silinemez!
                 throw new InvalidOperationException("Hesabınız silinemiyor. Geçmişe dönük silinemez kayıtlarınız (Sipariş faturaları veya mesaj geçmişi) bulunmaktadır.");
             }
-        }
+        }*/
     }
 }

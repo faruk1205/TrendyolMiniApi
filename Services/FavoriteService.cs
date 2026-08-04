@@ -39,6 +39,7 @@ namespace TrendyolMiniApi.Services
         public async Task<List<ProductResponseDto>> GetMyFavoritesAsync(int userId)
         {
             return await _context.Favorites
+                .AsNoTracking()
                 .Where(f => f.UserId == userId)
                 .Include(f => f.Product)
                     .ThenInclude(p => p.Category)

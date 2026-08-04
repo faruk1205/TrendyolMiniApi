@@ -117,8 +117,27 @@ namespace TrendyolMiniApi.Services
                 Data = products
             };
         }
-
+        
         public async Task DeleteProductAsync(int id, int sellerId)
+        {
+            var product = await _context.Products.FindAsync(id);
+            if (product == null)
+                throw new KeyNotFoundException("Silinmek istenen ürün bulunamadı.");
+
+            if (product.SellerId != sellerId)
+                throw new UnauthorizedAccessException("Sadece kendi eklediğiniz ürünleri silebilirsiniz!");
+
+            // SİHİR BURADA: Interceptor bunu yakalayacak ve IsDeleted = true yapacak.
+            // Başka tablolara bağlı olsa bile güncelleme olduğu için hata vermeyecek.
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+            /* hard delete isteseydik : Gümrük memuru atlatılır!
+            await _context.Products
+                .Where(p => p.Id == id)
+                .ExecuteDeleteAsync(); // RAM'deki ChangeTracker'ı tamamen görmezden gelir ve SQL'e anında "DELETE FROM Products WHERE Id=..." sorgusu atar!*/
+        }
+        
+       /* public async Task DeleteProductAsync(int id, int sellerId)      //soft delete yokken böyle yapıyorduk
         {
             var product = await _context.Products.FindAsync(id);
             if (product == null)
@@ -137,7 +156,7 @@ namespace TrendyolMiniApi.Services
                 // İş kuralı hatasını fırlatıyoruz, Controller bunu yakalayacak!
                 throw new InvalidOperationException("Bu ürün daha önce sipariş edildiği (faturası kesildiği) için sistemden tamamen silinemez! Sadece pasife alınabilir.");
             }
-        }
+        }*/
 
         public async Task<object> GetShowcaseProductsAsync(CancellationToken cancellationToken)
         {

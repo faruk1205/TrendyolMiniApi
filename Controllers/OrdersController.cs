@@ -16,16 +16,6 @@ namespace TrendyolMiniApi.Controllers
             _orderService = orderService;
             _currentUser = currentUser;
         }
-
-        // 1. POST: IActionResult çöpe atıldı. Dönüş tipi int olarak eşitlendi.
-        [HttpPost]
-        public async Task<BaseResponseDto<int>> CreateOrder(OrderCreateDto request)
-        {
-            int orderId = await _orderService.CreateOrderAsync(request, _currentUser.Id);
-            
-            // Ok() yok, doğrudan int taşıyan BaseResponseDto fırlatıyoruz.
-            return BaseResponseDto<int>.SuccessResult(orderId, "Siparişiniz başarıyla alındı!");
-        }
         
         // 2. GET: ActionResult ve Ok() kaldırıldı. Sadece standart çerçevemiz dönüyor.
         [HttpGet]

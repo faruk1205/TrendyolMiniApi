@@ -1,10 +1,11 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using TrendyolMiniApi.Entities;
 using TrendyolMiniApi.Enums; // Enum'ı projenize dahil edin
 
 namespace TrendyolMiniApi.Models
 {
-    public class User : BaseEntity
+    public class User : SoftDeleteBaseEntity
     {
         public string Username { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;

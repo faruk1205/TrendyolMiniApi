@@ -67,6 +67,7 @@ builder.Services.AddExceptionHandlingInfrastructure();
 builder.Services.AddHttpClientsInfrastructure();
 builder.Services.AddHangfireInfrastructure(builder.Configuration);
 builder.Services.AddMappingInfrastructure();
+builder.Services.AddSoapClientInfrastructure();
 
 // ==========================================
 // 3. UYGULAMANIN İNŞASI VE ARA YAZILIMLAR (MIDDLEWARE)
