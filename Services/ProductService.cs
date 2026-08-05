@@ -3,12 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Extensions;
 using TrendyolMiniApi.Markers;
 using TrendyolMiniApi.Models;
 
 namespace TrendyolMiniApi.Services
 {
-    public class ProductService : IProductService , IScopedService
+    public class ProductService : IProductService, IScopedService
     {
         private readonly ApplicationDbContext _context;
         private readonly IFileService _fileService;
@@ -16,7 +17,8 @@ namespace TrendyolMiniApi.Services
         private readonly IMapper _mapper;
 
         // Bütün araç gereçleri (Bağımlılıkları) Servisimize veriyoruz
-        public ProductService(ApplicationDbContext context, IFileService fileService, HybridCache hybridCache,IMapper mapper)
+        public ProductService(ApplicationDbContext context, IFileService fileService, HybridCache hybridCache,
+            IMapper mapper)
         {
             _context = context;
             _fileService = fileService;
@@ -26,21 +28,21 @@ namespace TrendyolMiniApi.Services
 
         public async Task<int> CreateProductAsync(ProductCreateDto request, int sellerId)
         {
-                // 1. Resmi sunucuya/buluta kaydet ve yolunu (path) al
-                string imagePath = await _fileService.SaveImageAsync(request.Image, "products");
+            // 1. Resmi sunucuya/buluta kaydet ve yolunu (path) al
+            string imagePath = await _fileService.SaveImageAsync(request.Image, "products");
 
-                // 2. SİHİR BURADA: DTO içindeki standart verileri (Name, Price, Stock vb.) otomatik eşleştir
-                var product = _mapper.Map<Product>(request);
+            // 2. SİHİR BURADA: DTO içindeki standart verileri (Name, Price, Stock vb.) otomatik eşleştir
+            var product = _mapper.Map<Product>(request);
 
-                // 3. EKSİKLERİ TAMAMLA: DTO'da olmayan, dışarıdan gelen özel verileri nesneye ekle
-                product.SellerId = sellerId;
-                product.ImagePath = imagePath;
+            // 3. EKSİKLERİ TAMAMLA: DTO'da olmayan, dışarıdan gelen özel verileri nesneye ekle
+            product.SellerId = sellerId;
+            product.ImagePath = imagePath;
 
-                // 4. Veritabanına kaydet
-                _context.Products.Add(product);
-                await _context.SaveChangesAsync();
+            // 4. Veritabanına kaydet
+            _context.Products.Add(product);
+            await _context.SaveChangesAsync();
 
-                return product.Id;
+            return product.Id;
             /*string imagePath = await _fileService.SaveImageAsync(request.Image, "products");
             var product = new Product
             {
@@ -57,7 +59,8 @@ namespace TrendyolMiniApi.Services
             return product.Id;*/
         }
 
-        public async Task<ProductPagedResponseDto> GetProductsAsync(ProductQueryParameters query, CancellationToken cancellationToken)
+        public async Task<ProductPagedResponseDto> GetProductsAsync(ProductQueryParameters query,
+            CancellationToken cancellationToken)
         {
             var productsQuery = _context.Products
                 .Include(p => p.Category)
@@ -117,27 +120,40 @@ namespace TrendyolMiniApi.Services
                 Data = products
             };
         }
-        
-        public async Task DeleteProductAsync(int id, int sellerId)
+
+        // isHardDelete parametresi varsayılan olarak false'tur. 
+// Yani dışarıdan sadece (id, sellerId) gönderirsen Soft Delete çalışır.
+        public async Task DeleteProductAsync(int id, int sellerId, bool isHardDelete = false)
         {
             var product = await _context.Products.FindAsync(id);
+
             if (product == null)
                 throw new KeyNotFoundException("Silinmek istenen ürün bulunamadı.");
 
             if (product.SellerId != sellerId)
                 throw new UnauthorizedAccessException("Sadece kendi eklediğiniz ürünleri silebilirsiniz!");
 
-            // SİHİR BURADA: Interceptor bunu yakalayacak ve IsDeleted = true yapacak.
-            // Başka tablolara bağlı olsa bile güncelleme olduğu için hata vermeyecek.
-            _context.Products.Remove(product);
+            // Karar Mekanizması: Hard Delete mi, Soft Delete mi?
+            if (isHardDelete)
+            {
+                // Geçtiğimiz derste DbContext'e kazandırdığımız özel VIP metodumuz
+                _context.HardRemove(product);
+            }
+            else
+            {
+                // Normal Remove (Sistemin bunu yakalayıp IsDeleted = true yapacak)
+                _context.Products.Remove(product);
+            }
+
+            // Seçim ne olursa olsun, son sözü SaveChanges söyler
             await _context.SaveChangesAsync();
-            /* hard delete isteseydik : Gümrük memuru atlatılır!
-            await _context.Products
-                .Where(p => p.Id == id)
-                .ExecuteDeleteAsync(); // RAM'deki ChangeTracker'ı tamamen görmezden gelir ve SQL'e anında "DELETE FROM Products WHERE Id=..." sorgusu atar!*/
         }
-        
-       /* public async Task DeleteProductAsync(int id, int sellerId)      //soft delete yokken böyle yapıyorduk
+
+        // .ExecuteDeleteAsync();  RAM'deki ChangeTracker'ı tamamen görmezden gelir ve SQL'e anında "DELETE FROM Products WHERE Id=..." sorgusu atar!*/
+
+        #region MyRegion
+
+        /* public async Task DeleteProductAsync(int id, int sellerId)      //soft delete yokken böyle yapıyorduk
         {
             var product = await _context.Products.FindAsync(id);
             if (product == null)
@@ -158,35 +174,42 @@ namespace TrendyolMiniApi.Services
             }
         }*/
 
+        #endregion
+
+
         public async Task<object> GetShowcaseProductsAsync(CancellationToken cancellationToken)
         {
             var cacheKey = "Trendyol_Vitrin_EnYeniUrunler";
 
-            return await _hybridCache.GetOrCreateAsync(
-                cacheKey,
-                async cancel =>
-                {
-                    var newestProducts = await _context.Products.ToListAsync(cancel);
-                    return new
-                    {
-                        CacheSaati = DateTime.Now.ToString("HH:mm:ss.fff"),
-                        Urunler = newestProducts
-                    };
-                },
-                cancellationToken: cancellationToken
-            );
+            return await
+                _hybridCache
+                    .GetOrCreateAsync( //GetOrCreateAsync(...): "Bu veriyi getir. Önbellekte varsa direkt ver, yoksa şu kod bloğunu (veritabanı sorgusunu) çalıştır, sonucunu önbelleğe kaydet ve bana ver."
+                        cacheKey,
+                        async cancel =>
+                        {
+                            var newestProducts = await _context.Products.ToListAsync(cancel);
+                            return new
+                            {
+                                CacheSaati = DateTime.Now.ToString("HH:mm:ss.fff"),
+                                Urunler = newestProducts
+                            };
+                        },
+                        cancellationToken: cancellationToken
+                    );
         }
 
         public async Task<ProductResponseDto> GetProductDetail(int ProductId)
-        {   
+        {
             var product = await _context.Products.FindAsync(ProductId);
-    
-            if (product == null) 
+
+            if (product == null)
                 return null;
 
             // SİHİR BURADA: "product nesnesini al ve ProductResponseDto tipine dönüştür"
             return _mapper.Map<ProductResponseDto>(product);
-            
+
+            #region MyRegion
+
             /*var product = await _context.Products
                 .Where(p => p.Id == ProductId)
                 .Select(p => new ProductResponseDto
@@ -201,6 +224,26 @@ namespace TrendyolMiniApi.Services
                     SellerName = p.Seller.Username,
                 }).FirstOrDefaultAsync();
             return product;*/
+
+
+            #endregion
+        }
+
+        // Servis Katmanındaki Kusursuz Kullanım:
+        public async Task<List<ProductResponseDto>> GetAllProductsIncludeDeletedAsync()
+        {
+            var allProductsIncludingDeleted = await _context.Products
+                
+                .IncludeSoftDeleted()
+                .Select(p => new ProductResponseDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    // ... diğer proplar
+                })
+                .ToListAsync();
+
+            return allProductsIncludingDeleted;
         }
     }
 }

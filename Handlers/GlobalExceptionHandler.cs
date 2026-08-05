@@ -26,6 +26,7 @@ namespace TrendyolMiniApi.Middlewares
             var statusCode = exception switch
             {
                 KeyNotFoundException => StatusCodes.Status404NotFound,           // Ürün bulunamadı
+                DistributedLockAcquisitionException => StatusCodes.Status409Conflict,  // yeni
                 InvalidOperationException => StatusCodes.Status400BadRequest,    // Zaten favorilerde ekli
                 UnauthorizedAccessException => StatusCodes.Status403Forbidden,   // Yetkisiz silme girişimi
                 _ => StatusCodes.Status500InternalServerError                    // Öngörülemeyen diğer sistem hataları

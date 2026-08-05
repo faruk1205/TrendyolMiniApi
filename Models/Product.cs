@@ -9,12 +9,12 @@ namespace TrendyolMiniApi.Models
         public string Description { get; set; } = string.Empty;
         public decimal Price { get; set; } // Parasal işlemlerde float/double yerine "decimal" kullanılır!
         
-        [ConcurrencyCheck]  //Bu etiket, stoğu güncellerken kilit mekanizmasını devreye sokar
+        [ConcurrencyCheck]  //Bu etiket, stoğu güncellerken kilit mekanizmasını devreye sokar.Amaç  Optimistic concurrency 'yi önlemek. Mantığı ise kaydetme sırasında satırın beklediği sürümde olup olmadığını kontrol eder.
         public int Stock { get; set; }
         public string ImagePath { get; set; } = string.Empty;
         
       
-  // Foreign Keys
+        // Foreign Keys
         public int CategoryId { get; set; }
         public Category? Category { get; set; }
 

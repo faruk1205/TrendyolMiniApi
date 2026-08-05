@@ -20,9 +20,6 @@ builder.Host.UseSerilog();
 // ==========================================
 // 2. SERVİSLERİN KAYIT EDİLMESİ
 // ==========================================
-
-
-
 //etiket yöntemi için marker dosyasında boş interface'ler tanımladık (Scrutor)
 builder.Services.Scan(scan => scan
     .FromAssemblyOf<Program>()
@@ -62,7 +59,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSwaggerInfrastructure();
 builder.Services.AddJwtInfrastructure(builder.Configuration);
 builder.Services.AddDatabaseInfrastructure(builder.Configuration);
-builder.Services.AddCachingInfrastructure();
+builder.Services.AddCachingInfrastructure(builder.Configuration);
 builder.Services.AddExceptionHandlingInfrastructure();
 builder.Services.AddHttpClientsInfrastructure();
 builder.Services.AddHangfireInfrastructure(builder.Configuration);

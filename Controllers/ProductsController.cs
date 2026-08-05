@@ -38,10 +38,10 @@ namespace TrendyolMiniApi.Controllers
         [HttpDelete("{id}")]
         [Authorize(Roles = "Satıcı")]
         // 3. EN BÜYÜK TEMİZLİK: Try-catch bloğu tamamen silindi! Sadece başarı senaryosu kaldı.
-        public async Task<BaseResponseDto> DeleteProduct(int id)
+        public async Task<BaseResponseDto> DeleteProduct(int id,[FromQuery] bool isHardDelete = false)
         {
             // Eğer ürün yoksa veya yetki yoksa, servis 'throw new' diyecek ve GlobalExceptionHandler bunu halledecek.
-            await _productService.DeleteProductAsync(id, _currentUser.Id);
+            await _productService.DeleteProductAsync(id, _currentUser.Id, isHardDelete);
             
             return BaseResponseDto.SuccessResult("Ürün başarıyla vitrinden kaldırıldı.");
         }
@@ -59,6 +59,12 @@ namespace TrendyolMiniApi.Controllers
         public async Task<BaseResponseDto<ProductResponseDto>> GetProductId(int id)
         {
             return BaseResponseDto<ProductResponseDto>.SuccessResult(await _productService.GetProductDetail(id));
+        }
+        
+        [HttpGet("AllwithSoftDeleted")]
+        public async Task<BaseResponseDto<List<ProductResponseDto>>> GetAllProductsIncludeDeletedAsync()
+        {
+            return BaseResponseDto<List<ProductResponseDto>>.SuccessResult(await _productService.GetAllProductsIncludeDeletedAsync());
         }
     }
 }

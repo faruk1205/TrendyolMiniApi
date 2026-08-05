@@ -8,6 +8,7 @@ using TrendyolMiniApi.Middlewares;
 using TrendyolMiniApi.Providers;
 using Hangfire;
 using Hangfire.PostgreSql;
+using StackExchange.Redis;
 using TrendyolMiniApi.Calculator;
 using TrendyolMiniApi.Mappings;
 
@@ -99,7 +100,39 @@ namespace TrendyolMiniApi.Extensions
         }
 
         // 4. ÖNBELLEK (CACHE) AYARLARI
-        public static IServiceCollection AddCachingInfrastructure(this IServiceCollection services)
+        public static IServiceCollection AddCachingInfrastructure(this IServiceCollection services, IConfiguration configuration)
+        {
+            //  Bağlantı cümlesini al
+            string redisConnectionString = configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+
+            // ANA ŞALTERİ KURUYORUZ (Senin CheckoutAsync içindeki kilit mekanizması için ŞART!)
+            // Redis'e tek bir bağlantı açıyoruz ve bunu Singleton (uygulama boyunca tek) olarak DI havuzuna ekliyoruz.
+            var multiplexer = ConnectionMultiplexer.Connect(redisConnectionString);
+            services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+
+            // IDistributedCache Ayarları (HybridCache burayı kullanacak)
+            // Yukarıda kurduğumuz multiplexer bağlantısını kullanmasını söylüyoruz ki boşuna 2. bir bağlantı açmasın.
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.ConnectionMultiplexerFactory = () => Task.FromResult<IConnectionMultiplexer>(multiplexer);
+                options.InstanceName = "Trendyol_";      
+            });
+
+#pragma warning disable EXTEXP0018
+            //Hybrid L1 + L2 Önbellek Ayarları
+            services.AddHybridCache(options =>
+            {
+                options.DefaultEntryOptions = new Microsoft.Extensions.Caching.Hybrid.HybridCacheEntryOptions
+                {
+                    Expiration = TimeSpan.FromMinutes(5),
+                    LocalCacheExpiration = TimeSpan.FromMinutes(5)
+                };
+            });
+#pragma warning restore EXTEXP0018
+
+            return services;
+        }
+        /*public static IServiceCollection AddCachingInfrastructure(this IServiceCollection services)
         {
             services.AddStackExchangeRedisCache(options =>
             {
@@ -119,7 +152,7 @@ namespace TrendyolMiniApi.Extensions
             #pragma warning restore EXTEXP0018
 
             return services;
-        }
+        }*/
 
         // 5. HATA YÖNETİMİ (EXCEPTION HANDLING) AYARLARI
         public static IServiceCollection AddExceptionHandlingInfrastructure(this IServiceCollection services)

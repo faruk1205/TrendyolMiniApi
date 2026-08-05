@@ -67,7 +67,7 @@ namespace TrendyolMiniApi.Services
             if (favorite == null) 
                 throw new KeyNotFoundException("Bu ürün favorilerinizde bulunamadı.");
 
-            _context.Favorites.Remove(favorite);
+            _context.HardRemove(favorite); // Araya Favorites tablosunu koymadan, metodu doğrudan _context üzerinden çağırman gerekiyor. Biz metodu yazarken <TEntity> (Generic) olarak tasarladığımız için, sen içine favorite nesnesini attığında o zaten otomatik olarak tipini anlayacaktır.
             await _context.SaveChangesAsync();
         }
     }
