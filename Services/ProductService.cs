@@ -6,6 +6,7 @@ using TrendyolMiniApi.DTOs;
 using TrendyolMiniApi.Extensions;
 using TrendyolMiniApi.Markers;
 using TrendyolMiniApi.Models;
+using TrendyolMiniApi.Services.Pdf;
 
 namespace TrendyolMiniApi.Services
 {
@@ -15,15 +16,18 @@ namespace TrendyolMiniApi.Services
         private readonly IFileService _fileService;
         private readonly HybridCache _hybridCache;
         private readonly IMapper _mapper;
+        private readonly IExcelService _excelService;
+        
 
         // Bütün araç gereçleri (Bağımlılıkları) Servisimize veriyoruz
         public ProductService(ApplicationDbContext context, IFileService fileService, HybridCache hybridCache,
-            IMapper mapper)
+            IMapper mapper, IExcelService excelService)
         {
             _context = context;
             _fileService = fileService;
             _hybridCache = hybridCache;
             _mapper = mapper;
+            _excelService = excelService ;
         }
 
         public async Task<int> CreateProductAsync(ProductCreateDto request, int sellerId)
@@ -245,5 +249,94 @@ namespace TrendyolMiniApi.Services
 
             return allProductsIncludingDeleted;
         }
+        
+        // 1. EXPORT İŞLEMİ (Demet - Tuple dönüyoruz)
+        public async Task<(byte[] FileBytes, string ContentType, string FileName)> ExportProductsAsync(int sellerId, CancellationToken ct)
+        {
+            var products = await _context.Products.Where(p => p.SellerId == sellerId).ToListAsync(ct);
+
+            var columns = new Dictionary<string, Func<Product, object?>>
+            {
+                { "Kayıt No", p => p.Id },
+                { "Ürün Adı", p => p.Name },
+                { "Stok", p => p.Stock },
+                { "Fiyat", p => p.Price }
+            };
+
+            var fileBytes = await _excelService.ExportAsync(products, columns, "Ürün_Listesi", ct);
+            
+            return (fileBytes, 
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+                $"Urun_Listesi_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+        }
+
+        // 2. IMPORT İŞLEMİ
+       public async Task<ImportResultDto<Product>> ImportProductsAsync(IFormFile file, int sellerId, CancellationToken ct)
+{
+    // 1. Excel'deki ham veriyi okuyup liste haline getir (ExcelService işini yapsın)
+    var result = await _excelService.ImportAsync(file, cells => new Product
+    {
+        Name = cells[0],
+        CategoryId = int.Parse(cells[1]),
+        Price = decimal.Parse(cells[2]),
+        Stock = int.Parse(cells[3]),
+        Description = cells.Count > 4 ? cells[4] : string.Empty,
+        SellerId = sellerId
+    }, startRow: 2, ct);
+
+    if (!result.IsSuccess)
+    {
+        var errorMessages = string.Join(" | ", result.Errors.Select(e => $"Satır {e.RowNumber}: {e.Message}"));
+        throw new InvalidOperationException($"Excel hataları: {errorMessages}");
+    }
+
+    // --- UPSERT (GÜNCELLE VEYA EKLE) MANTIĞI BAŞLIYOR ---
+
+    // 2. Satıcının veritabanındaki mevcut ürünlerini TEK BİR SORGU ile RAM'e çek
+    var existingProducts = await _context.Products
+        .Where(p => p.SellerId == sellerId)
+        .ToListAsync(ct);
+
+    var productsToInsert = new List<Product>();
+
+    // 3. Excel'den gelen her bir ürün için RAM'de kontrol yap
+    foreach (var parsedProduct in result.Items)
+    {
+        // E-ticarette eşleştirme genelde 'Barkod' veya 'SKU' ile yapılır.
+        // Şimdilik ürünün 'Adı'nı benzersiz anahtar olarak kabul ediyoruz.
+        var existing = existingProducts.FirstOrDefault(p => 
+            p.Name.Equals(parsedProduct.Name, StringComparison.OrdinalIgnoreCase));
+
+        if (existing != null)
+        {
+            // GÜNCELLEME (Update)
+            // Sadece değişebilecek alanları (Fiyat, Stok vb.) Excel'den gelenlerle eziyoruz.
+            existing.Price = parsedProduct.Price;
+            existing.Stock = parsedProduct.Stock;
+            existing.Description = parsedProduct.Description;
+            
+            // Not: EF Core RAM'de izlediği(Tracking) bir nesnenin değiştiğini otomatik anlar. 
+            // _context.Update(existing) dememize gerek yoktur!
+        }
+        else
+        {
+            // YENİ EKLEME (Insert)
+            // Eğer ürün mevcut listede yoksa, yeni eklenecekler listesine atıyoruz.
+            productsToInsert.Add(parsedProduct);
+        }
+    }
+
+    // 4. Sadece YENİ olanları veritabanına ekle
+    if (productsToInsert.Any())
+    {
+        await _context.Products.AddRangeAsync(productsToInsert, ct);
+    }
+
+    // 5. Değişiklikleri (Hem güncellenenler hem yeniler) tek seferde veritabanına yansıt!
+    await _context.SaveChangesAsync(ct);
+
+    return result;
+}
+       
     }
 }

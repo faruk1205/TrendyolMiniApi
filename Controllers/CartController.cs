@@ -35,13 +35,15 @@ namespace TrendyolMiniApi.Controllers
             return BaseResponseDto<CartDetailResponseDto>.SuccessResult(cart, "Sepet başarıyla getirildi.");
         }
 
-        // 3. POST (Checkout): Sepeti siparişe dönüştürür. Yeni sipariş numarasını (int) taşıyan çerçeveyi fırlatırız.
         [HttpPost("checkout")]
-        public async Task<BaseResponseDto<int>> Checkout()
+        [Authorize]
+        public async Task<IActionResult> Checkout(CancellationToken ct)
         {
-            int orderId = await _cartService.CheckoutAsync(_currentUser.Id);
-            
-            return BaseResponseDto<int>.SuccessResult(orderId, "Siparişiniz başarıyla alındı! Sepetiniz temizlendi.");
+            // DTO nesnesini servisten teslim alıyoruz
+            var result = await _cartService.CheckoutAsync(_currentUser.Id, ct);
+    
+            // DTO'nun içindeki dosya bilgilerini kullanarak PDF'i tarayıcıya indiriyoruz
+            return File(result.InvoicePdfBytes, "application/pdf", result.InvoiceFileName);
         }
     }
 }

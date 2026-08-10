@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Models;
 using TrendyolMiniApi.Services;
 
 namespace TrendyolMiniApi.Controllers
@@ -66,5 +67,51 @@ namespace TrendyolMiniApi.Controllers
         {
             return BaseResponseDto<List<ProductResponseDto>>.SuccessResult(await _productService.GetAllProductsIncludeDeletedAsync());
         }
+        
+        
+        [HttpGet("export-excel")]
+        [Authorize(Roles = "Satıcı")] 
+        public async Task<IActionResult> ExportProductsToExcel(CancellationToken ct)
+        {
+            // 1. Tuple Deconstruction ile verileri yakala
+            var (fileBytes, contentType, fileName) = await _productService.ExportProductsAsync(_currentUser.Id, ct); 
+    
+            return File(fileBytes, contentType, fileName);// 2. Dosyayı tarayıcıya fırlat!, File() metodu .NET'in ControllerBase sınıfından gelir. , Gelen byte dizisini alır ve tarayıcıya "Al bu bir dosyadır, indir" komutunu verir.
+    
+            #region MyRegion
+
+            /* Eğer dönüş tipini BaseResponseDto<byte[]> yaparsan, API'ın bu yanıtı bir JSON nesnesine dönüştürür. Byte dizisi (Excel dosyasının 0 ve 1'leri) JSON formatına çevrilirken mecburen devasa bir Base64 metnine dönüşür.
+       Kullanıcı "İndir" butonuna bastığında tarayıcıya Excel dosyası inmez; bunun yerine ekranda  devasa, anlamsız bir metin görür:
+           {
+              "success": true,
+              "message": "İşlem başarılı",
+              "data": "UEsDBBQABgAIAAAAIQCWpvwV1gEAABMGAAATAAgCW0NvbnRlbnRfVHlwZXNdLnhtbCCiBAIooAAC..."
+          }
+      Tarayıcının bir dosyayı "İndirilenler" klasörüne kaydedebilmesi için (Save As diyaloğu), sunucudan JSON değil, saf binary (ikili) veri ve özel HTTP başlıkları (MIME Type) gelmesi gerekir.
+      Bu yüzden, projedeki tüm metotlar BaseResponseDto dönse bile, dosya fırlatan metotlar mecburen IActionResult (veya FileResult) dönmek zorundadır. Bu Clean Architecture'ı bozmaz, HTTP standartlarına uymanın bir gereğidir.
+       
+       Sen return File(...) dediğinde, .NET arka planda HTTP yanıtını (Response) şu şekilde yapılandırır ve tarayıcıya gönderir:
+            content type: tarayıcıya bunun bir excel dosyası olduğunu söyler )
+            Content-Disposition: Tarayıcıya dosyayı ekranda açmaya çalışma, doğrudan bilgisayara indir ve adını bu yap der. attachment; filename="Urun_Listesi_20260806.xlsx" böyle bir şey.
+            Body: Saf bayt dizisi (0 ve 1'ler)
+       */
+
+            #endregion
+        }
+
+       
+        [HttpPost("import-excel")]
+        [Authorize(Roles = "Satıcı")]
+        public async Task<BaseResponseDto<int>> ImportProductsFromExcel(IFormFile file, CancellationToken ct)
+        {
+            // Servis hata bulursa aşağı satıra inemeden Exception fırlatacak.
+            var result = await _productService.ImportProductsAsync(file, _currentUser.Id, ct);
+
+            // Buraya ulaşabildiysek işlem kesinlikle başarılıdır!
+            return BaseResponseDto<int>.SuccessResult(
+                result.Items.Count, 
+                $"{result.Items.Count} adet ürün başarıyla eklendi.");
+        }
+        
     }
 }

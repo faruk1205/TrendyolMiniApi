@@ -6,6 +6,8 @@ namespace TrendyolMiniApi.Services
     {
         Task AddToCartAsync(CartAddDto request, int userId);
         Task<CartDetailResponseDto> GetMyCartAsync(int userId);
-        Task<int> CheckoutAsync(int userId);
+
+        Task<CheckoutResultDto> CheckoutAsync(int userId,
+            CancellationToken ct = default);
     }
 }

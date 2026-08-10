@@ -1,4 +1,5 @@
 using Hangfire;
+using Prometheus;
 using Serilog;
 using TrendyolMiniApi.Extensions;
 using TrendyolMiniApi.Hubs;
@@ -13,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console() 
     .WriteTo.File("Logs/trendyol-log-.txt", rollingInterval: RollingInterval.Day) 
+    .WriteTo.Seq("http://localhost:5341") // <-- BİR TEK BU SATIRI EKLEDİK
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -52,7 +54,7 @@ builder.Services.Scan(scan => scan
 */
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 
 // B. Hazır Altyapı Servisleri (Extension metotlarımızdan geliyor)
@@ -76,6 +78,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+// 1. HTTP İsteklerinin ne kadar sürdüğünü ve kaç tane geldiğini sayar
+app.UseHttpMetrics();
 
 app.UseExceptionHandler(); // Akıllı kalkanımız devrede
 app.UseStaticFiles();
@@ -107,4 +111,8 @@ app.MapHub<ChatHub>("/chathub"); // Canlı sohbet telsizi
     service => service.SyncUsdRateAsync(), 
     Cron.MinuteInterval(5) 
 );*/
+
+// 2. Metriklerin dışarıdan okunabilmesi için /metrics adında bir uç nokta açar
+app.MapMetrics();
+
 app.Run();
