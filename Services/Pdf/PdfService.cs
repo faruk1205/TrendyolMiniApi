@@ -1,12 +1,14 @@
 ﻿using PuppeteerSharp;
 using PuppeteerSharp.Media;
+using TrendyolMiniApi.DTOs;
 using TrendyolMiniApi.Markers;
 
 namespace TrendyolMiniApi.Services.Pdf
 {
     public interface IPdfService : IScopedService
     {
-        Task<byte[]> GenerateAsync<T>(T model, IPdfTemplate<T> template);
+        // Burada da 'where T : class' kuralı olmak zorunda!
+        Task<byte[]> GenerateAsync<T>(T model, IPdfTemplate<T> template) where T : class;
     }
 
     public class PdfService : IPdfService
@@ -20,9 +22,10 @@ namespace TrendyolMiniApi.Services.Pdf
             _browserProvider = browserProvider; // Singleton olan tarayıcıyı buraya aldık
         }
 
-        public async Task<byte[]> GenerateAsync<T>(T model, IPdfTemplate<T> template)
-        {
+        // Arayüz ile bu imza yüzde yüz örtüşmelidir
+        public async Task<byte[]> GenerateAsync<T>(T model, IPdfTemplate<T> template) where T : class        {
             // 1. DTO ve Şablonu birleştirip HTML üret (Scoped)
+            
             var html = await _renderer.RenderToStringAsync(template.ViewName, model);
 
             // 2. Hazırda bekleyen Chrome'u al (Singleton)
@@ -35,7 +38,7 @@ namespace TrendyolMiniApi.Services.Pdf
             // 4. Sekmeyi PDF'e bas ve sekmeyi kapat (using bloğu sayesinde)
             return await page.PdfDataAsync(new PdfOptions
             {
-                Format = PaperFormat.A4,
+                Format = PaperFormat.A5,
                 PrintBackground = true,
                 MarginOptions = new MarginOptions { Top = "1cm", Bottom = "1cm", Left = "1cm", Right = "1cm" }
             });

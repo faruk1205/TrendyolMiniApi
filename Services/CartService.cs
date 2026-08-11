@@ -208,6 +208,7 @@ namespace TrendyolMiniApi.Services
     // ---------------------------------------------------------
 
     // 3. FATURA DTO'SUNU HAZIRLA
+
     var invoiceDto = new InvoiceDto
     {
         OrderNumber = $"TRX-{newOrderId}-{DateTime.Now.Ticks.ToString()[^6..]}",
