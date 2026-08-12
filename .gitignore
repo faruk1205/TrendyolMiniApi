@@ -20,3 +20,4 @@ wwwroot/uploads/
 /Logs/
 
 seq_data/
+redis_data/
