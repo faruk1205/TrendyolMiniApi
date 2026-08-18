@@ -42,6 +42,7 @@ namespace TrendyolMiniApi.Services
                 // 2. ÖNCE A PLANINI DENE (REST JSON)
                 currentRate = await primaryProvider.GetTryExchangeRateAsync("USD");
                 successfulProviderName = primaryProvider.ProviderType; 
+                Console.WriteLine("ANA PROVİDER ÇALIŞTI (REST-JSON)");
             }
             catch (Exception ex)
             {

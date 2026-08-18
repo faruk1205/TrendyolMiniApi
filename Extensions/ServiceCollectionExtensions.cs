@@ -165,29 +165,31 @@ namespace TrendyolMiniApi.Extensions
         // 6. HTTP CLIENT VE DIŞ API AYARLARI
         public static IServiceCollection AddHttpClientsInfrastructure(this IServiceCollection services)
         {
-            // 1. REST Provider'ı çantaya ekle
-            services.AddHttpClient<IExchangeRateProvider,RestJsonExchangeRateProvider>(client =>
+            // 1. REST JSON Provider
+            services.AddHttpClient<RestJsonExchangeRateProvider>(client =>
             {
-                // Dış API'nin ana adresini burada tanımlıyoruz
-                client.BaseAddress = new Uri("https://api.exchangerate-api.com/v4/");
+                client.BaseAddress = new Uri("https://api.frankfurter.dev/v1/");
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
-                //Bu satır, API'ye gönderilen HTTP isteğine bir Accept header'ı ekler. "Bu isteğe vereceğin cevabı mümkünse JSON formatında gönder."
-                
-                // API 5 saniye içinde cevap vermezse bekleme, bağlantıyı kes!
                 client.Timeout = TimeSpan.FromSeconds(5);
             });
-            
-            // 2. SOAP Provider'ı çantaya ekle
-            services.AddHttpClient<IExchangeRateProvider, RestXmlExchangeRateProvider>(client =>
-            {
-                // Merkez Bankası günlük kur adresi
-                client.BaseAddress = new Uri("https://www.tcmb.gov.tr/"); 
-                client.Timeout = TimeSpan.FromSeconds(15);
 
+            // 2. REST XML Provider
+            services.AddHttpClient<RestXmlExchangeRateProvider>(client =>
+            {
+                client.BaseAddress = new Uri("https://www.tcmb.gov.tr/");
+                client.Timeout = TimeSpan.FromSeconds(15);
             });
+
+            // 3. Interface'e ayrı ayrı eşleştir (IEnumerable<IExchangeRateProvider> için)
+            services.AddTransient<IExchangeRateProvider>(sp => sp.GetRequiredService<RestJsonExchangeRateProvider>());
+            services.AddTransient<IExchangeRateProvider>(sp => sp.GetRequiredService<RestXmlExchangeRateProvider>());
+            /*Her sınıfa kendi ismiyle ayrı bir kutu açın (RestJsonExchangeRateProvider ve RestXmlExchangeRateProvider — interface değil
+             , somut sınıf adı). Böylece iki ayrı kutu olur, biri diğerini ezmez. En son da bu iki kutuyu ayrı ayrı IExchangeRateProvider
+             , olarak da kullanılabilir hale getiriyoruz ki IEnumerable<IExchangeRateProvider> ile ikisini birden alabilesiniz.*/
 
             return services;
         }
+        
         
         // 7. SOAP (DIŞ SERVİS) AYARLARI
         public static IServiceCollection AddSoapClientInfrastructure(this IServiceCollection services)

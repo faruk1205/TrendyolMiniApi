@@ -3,8 +3,8 @@ using Prometheus;
 using Serilog;
 using TrendyolMiniApi.Extensions;
 using TrendyolMiniApi.Hubs;
+using TrendyolMiniApi.Jobs;
 using TrendyolMiniApi.Markers;
-using TrendyolMiniApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,10 +94,12 @@ app.UseMiddleware<UserContextMiddleware>();
 app.MapControllers();
 app.MapHub<ChatHub>("/chathub"); // Canlı sohbet telsizi
 
-
+/*
 // 1. Hangfire Kontrol Panelini aktif et (Tarayıcıdan /hangfire adresine girerek izleyebilirsin)
-//app.UseHangfireDashboard("/hangfire");
+app.UseHangfireDashboard("/hangfire");
+*/
 
+#region MyRegion
 // 2. İşçiyi (Job) programla! 
 //RecurringJob, Hangfire'ın tekrarlayan (Recurring) işleri yönetmek için kullandığı statik sınıftır.
 //AddOrUpdate(...), Add → Eğer görev yoksa oluştur. Update → Aynı isimde görev varsa ayarlarını güncelle.
@@ -106,10 +108,13 @@ app.MapHub<ChatHub>("/chathub"); // Canlı sohbet telsizi
 //service => service.SyncUsdRateAsync(), Bu bir Lambda Expression'dır. Parametre "service" aslında "ICurrencySyncService service" nesnesidir.
 //Cron.MinuteInterval(5), Bu zamanlama bilgisidir. her 5 dakikada bir çalıştır. demektir.
 
-/*RecurringJob.AddOrUpdate<ICurrencySyncService>(
-    "kur-guncelleme-gorevi", 
-    service => service.SyncUsdRateAsync(), 
-    Cron.MinuteInterval(5) 
+#endregion
+/*
+// Her 5 dakikada bir Manager sınıfındaki metodu tetikle
+RecurringJob.AddOrUpdate<CurrencyJobManager>(
+    "kur-guncelleme-ve-redis-yayinlama", 
+    manager => manager.TriggerSyncAndPublish(), 
+    Cron.MinuteInterval(1) 
 );*/
 
 // 2. Metriklerin dışarıdan okunabilmesi için /metrics adında bir uç nokta açar

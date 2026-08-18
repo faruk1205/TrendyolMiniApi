@@ -15,23 +15,22 @@ namespace TrendyolMiniApi.Providers
 
         public async Task<decimal> GetTryExchangeRateAsync(string baseCurrency = "USD")
         {
-                // Base URL'i ayar dosyasında vereceğimiz için sadece bitiş noktasını yazıyoruz.
-                // GetFromJsonAsync metodu, JSON'ı otomatik olarak bizim DTO'muza dönüştürür.
-            var response = await _httpClient.GetFromJsonAsync<ExchangeRateApiResponse>($"latest/{baseCurrency}");
-                //var otomatik tip belirlemedir. Derleyici "GetFromJsonAsync<ExchangeRateApiResponse>()" görür ve der ki response "tipi ExchangeRateApiResponse" olacak. Yani aslında "ExchangeRateApiResponse response =" ile aynıdır.
-                //"GetFromJsonAsync" ile apiden json veri çekilir->HttpClient bu json'ı string olarak alır->Bu json, ExchangeRateApiResponse nesnesine deserialize edilir.
-                // .GetFromJsonAsync<ExchangeRateApiResponse>() --> "Bana bir şablon (DTO) ver. Ben gelen JSON metnindeki isimlerle, senin DTO'ndaki isimleri otomatik eşleştireyim ve sana hazır bir nesne vereyim."
-            if (response != null && response.Rates.TryGetValue("TRY", out decimal tryRate)) 
+            try
             {
-                return tryRate;
+                var response = await _httpClient.GetFromJsonAsync<ExchangeRateApiResponse>(
+                    $"latest?base={baseCurrency}");
+
+                if (response?.Rates.TryGetValue("TRY", out var tryRate) == true)
+                {
+                    return tryRate;
+                }
+
+                throw new Exception($"'{baseCurrency}' için TRY kuru bulunamadı.");
             }
-            //"TryGetValue" bir Dictionary metodudur.Şunu yapar: TRY var mı? varsa değerini getir yoksa false dön.
-            //"out" kelimesi, metodun sana ek bir değer döndürmesini sağlar. Yani "TRY = 39.45" ise şu olur "decimal tryRate = 39.45M" ve aynı zamanda true döner.
-            //Yani "if(response.Rates.TryGetValue("TRY", out decimal tryRate))" --> "Eğer TRY anahtarı varsa, değerini tryRate değişkenine koy." demektir.
-            //Bulunan kuru "return tryRate" ile döndürüyoruz.
-            
-            // Eğer API çöktüyse veya kura ulaşılamadıysa kalkanımızın yakalayacağı bir hata fırlatıyoruz.
-            throw new Exception("Dış sistemden döviz kuru alınamadı.");
+            catch (HttpRequestException ex)
+            {
+                throw new Exception($"Dış sistemden döviz kuru alınamadı: {ex.Message}", ex);
+            }
         }
     }
 }
