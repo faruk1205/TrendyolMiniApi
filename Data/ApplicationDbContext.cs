@@ -23,6 +23,9 @@
             
             public DbSet<ExchangeRate> ExchangeRates { get; set; }
             
+            public DbSet<GroupMessage> GroupMessages { get; set; }
+            public DbSet<GroupMember> GroupMembers { get; set; }
+            
             protected override void OnModelCreating(ModelBuilder modelBuilder)
             {
                 base.OnModelCreating(modelBuilder);

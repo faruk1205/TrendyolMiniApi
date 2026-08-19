@@ -1,11 +1,133 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 using TrendyolMiniApi.Data;
+using TrendyolMiniApi.Dtos;
+using TrendyolMiniApi.Enums;
 using TrendyolMiniApi.Models;
+using TrendyolMiniApi.Services;
 
 namespace TrendyolMiniApi.Hubs
 {
-    [Authorize] // GÜVENLİK DUVARI: Sadece giriş yapmış (JWT'si olan) kişiler telsize bağlanabilir.
+    public class ChatHub : Hub
+    {
+        private readonly ApplicationDbContext _dbContext;
+        private readonly IConnectionMultiplexer _redis;
+        private readonly RateLimiterService _rateLimiter;
+
+        private const int MaxContentLength = 2000;
+        private const int GroupMsgLimitPerSecond = 5;
+
+        public ChatHub(
+            ApplicationDbContext dbContext,
+            IConnectionMultiplexer redis,
+            RateLimiterService rateLimiter)
+        {
+            _dbContext = dbContext;
+            _redis = redis;
+            _rateLimiter = rateLimiter;
+        }
+        
+        public async Task JoinGroup(int groupId)
+        {
+            var senderId = GetUserId();
+            var isMember = await _dbContext.GroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == senderId);
+            if (!isMember) throw new HubException("Bu gruba katılamazsınız.");
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupId.ToString());
+        }
+
+        // ---------- 1-1 MESAJLAŞMA ----------
+        public async Task<int> SendPrivateMessage(int receiverId, string content)
+        {
+            var senderId = GetUserId();
+
+            content = ValidateAndTrimContent(content); // boş/aşırı uzun içerik burada elenir
+
+            var message = new Message
+            {
+                SenderId = senderId,
+                ReceiverId = receiverId,
+                Content = content,
+                IsRead = false
+            };
+
+            _dbContext.Messages.Add(message);
+            await _dbContext.SaveChangesAsync();
+
+            IReadOnlyList<string> targetUsers = new[] { receiverId.ToString(), senderId.ToString() };
+            await Clients.Users(targetUsers).SendAsync("ReceivePrivateMessage", message.Id, senderId, content);
+
+            return message.Id;
+        }
+
+        // ---------- GRUP MESAJLAŞMA ----------
+        public async Task SendGroupMessage(int groupId, string content)
+        {
+            var senderId = GetUserId();
+
+            content = ValidateAndTrimContent(content);
+
+            // Sorun #4 çözümü: üye olmayan biri gruba mesaj atamaz
+            var isMember = await _dbContext.GroupMembers
+                .AnyAsync(m => m.GroupId == groupId && m.UserId == senderId);
+
+            if (!isMember)
+                throw new HubException("Bu gruba mesaj gönderme yetkiniz yok.");
+
+            // Sorun #6 çözümü: kullanıcı başına rate limit
+            var allowed = await _rateLimiter.IsAllowedAsync(
+                senderId, "group-msg", GroupMsgLimitPerSecond, TimeSpan.FromSeconds(1));
+
+            if (!allowed)
+                throw new HubException("Çok hızlı mesaj gönderiyorsunuz, lütfen yavaşlayın.");
+
+            // Sorun #1 çözümü: mesajı ÖNCE DB'ye Pending olarak yaz.
+            // Bu satırdan sonra Redis çökse veya worker patlasa bile mesaj kaybolmaz.
+            var groupMessage = new GroupMessage
+            {
+                SenderId = senderId,
+                GroupId = groupId,
+                Content = content,
+                Status = MessageStatus.Pending
+            };
+
+            _dbContext.GroupMessages.Add(groupMessage);
+            await _dbContext.SaveChangesAsync();
+
+            // Kuyruğa artık sadece ID gidiyor
+            var dto = new GroupMessageQueueDto { MessageId = groupMessage.Id, GroupId = groupId };
+            var db = _redis.GetDatabase();
+            await db.ListRightPushAsync("group-chat-queue", dto.ToJson());
+
+            // Sorun #5 çözümü: gönderene anında "kuyruğa alındı" onayı
+            await Clients.Caller.SendAsync("GroupMessageQueued", groupMessage.Id);  //Clients.Caller, SignalR'da o anki bağlantıyı yapan istemciyi (yani mesajı gönderen kişiyi) temsil eder.
+        }
+
+        // ---------- Yardımcılar ----------
+        private int GetUserId()
+        {
+            var userIdString = Context.UserIdentifier;
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+                throw new HubException("Kullanıcı kimliği doğrulanamadı.");
+
+            return userId;
+        }
+
+        private static string ValidateAndTrimContent(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+                throw new HubException("Boş mesaj gönderilemez.");
+
+            content = content.Trim();
+
+            if (content.Length > MaxContentLength)
+                throw new HubException($"Mesaj en fazla {MaxContentLength} karakter olabilir.");
+
+            return content;
+        }
+    }
+}
+    /*[Authorize] // GÜVENLİK DUVARI: Sadece giriş yapmış (JWT'si olan) kişiler telsize bağlanabilir.
     public class ChatHub : Hub
     {
         private readonly ApplicationDbContext _context;
@@ -22,7 +144,7 @@ namespace TrendyolMiniApi.Hubs
             // 1. KİM GÖNDERİYOR?
             // Giriş yapan kişinin ID'sini token'dan otomatik yakalıyoruz. Kimse başkasının adına mesaj atamaz!
             /*Context.UserIdentifier claim değildir!! Bu, SignalR'ın kullanıcıyı tanımak için oluşturduğu benzersiz kullanıcı kimliğidir. SignalR bağlantısı kurulurken bunu belirler.
-            yani arka planda Context.UserIdentifier = Context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value; gibi bir işlem çalışır  */
+            yani arka planda Context.UserIdentifier = Context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value; gibi bir işlem çalışır  
             
             var userIdString = Context.UserIdentifier;
             if (string.IsNullOrEmpty(userIdString)) return; // Kimlik yoksa işlemi durdur
@@ -48,16 +170,14 @@ namespace TrendyolMiniApi.Hubs
             // Clients denen şey hub'a bağlı tüm istemcilerdir.  Clients.User("8") sadece ID'si 8 olan kullanıcıya gönder. gibi.
             //.SendAsync(...) istemcide (frontend'de) bir metodu tetikler.
             /*"ReceivePrivateMessage" Bu aslında metodun adı değildir. Bir event (olay) adıdır. Backend, ReceivePrivateMessage gönderiyor. 
-            frontend ReceivePrivateMessage olayını yakalıyor. İsimler aynı olmak zorundadır.!!!  */
+            frontend ReceivePrivateMessage olayını yakalıyor. İsimler aynı olmak zorundadır.!!!  
         }
     }
-}
+}*/
 //Hub istemciler arasındaki iletişimi yönetir.
 /*Telefon Santrali
 
-Ali  --------\
-             \
-Ayşe ---------> HUB ----------> Mehmet */
+Kullanıcı 1 ---> Sunucu/Hub ---> Kullanıcı 2
 
 /*Normal web APİ'de   var userId = int.Parse( User.FindFirstValue(ClaimTypes.NameIdentifier) );
 buradaki user  aslında HttpContext.User demektir.JWT doğrulandıktan sonra middleware tokenı okuyup claimleri buraya koyar. Bizde User.FindFirstValue(...) ile alırız */

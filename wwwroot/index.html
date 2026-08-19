@@ -2,89 +2,119 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Trendyol Güvenli Sohbet Testi</title>
+    <title>Grup Sohbet Test</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
     <style>
-        body { font-family: Arial; padding: 20px; max-width: 600px; }
-        .panel { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; background: #f9f9f9; }
-        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; background: white; }
-        .msg { margin-bottom: 10px; padding: 8px; border-radius: 5px; }
-        .mine { background-color: #dcf8c6; text-align: right; }
-        .other { background-color: #f1f0f0; text-align: left; }
+        body { font-family: Arial; padding: 20px; max-width: 500px; margin: 0 auto; }
+        input, button { font-size: 14px; padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 100%; margin-bottom: 8px; box-sizing: border-box; }
+        button { cursor: pointer; background: #f27a1a; color: white; border: none; }
+        #messages { border: 1px solid #ccc; height: 350px; overflow-y: auto; padding: 10px; background: #fff; border-radius: 6px; margin-top: 10px; }
+        .msg { margin-bottom: 6px; padding: 6px 10px; border-radius: 5px; font-size: 14px; }
+        .mine { background: #dcf8c6; text-align: right; }
+        .other { background: #f1f0f0; }
+        .sys { background: #fee; color: #a33; font-size: 12px; text-align: center; }
+        #sendRow { display: none; }
     </style>
 </head>
 <body>
-<h2>Güvenli Canlı Mesajlaşma</h2>
 
-<!-- 1. GİRİŞ PANELİ: Artık biletsiz (tokensız) içeri almıyoruz -->
-<div class="panel" id="loginPanel">
-    <p><b>Adım 1:</b> Swagger'dan aldığın JWT Token'ı buraya yapıştır.</p>
-    <input type="text" id="tokenInput" placeholder="eyJhbGciOiJIUzI1NiIs..." style="width: 100%; margin-bottom: 10px;" />
-    <button onclick="connectToSignalR()">Telsize Bağlan</button>
-</div>
+<h3>Grup Sohbet Testi</h3>
 
-<!-- 2. SOHBET PANELİ: Sadece bağlanınca açılır -->
-<div class="panel" id="chatPanel" style="display: none;">
-    <p><b>Adım 2:</b> Kime mesaj atacaksın?</p>
-    <input type="number" id="receiverIdInput" placeholder="Alıcı ID (Örn: 2)" style="width: 100px; margin-bottom: 10px;" />
-    <br>
-    <input type="text" id="messageInput" placeholder="Mesajınız..." style="width: 70%;" />
-    <button onclick="sendPrivateMessage()">Gönder</button>
+<div id="setup">
+    <input type="text" id="tokenInput" placeholder="JWT Token" />
+    <input type="number" id="groupIdInput" placeholder="Grup ID" value="1" />
+    <button onclick="connect()">Bağlan ve Gruba Katıl</button>
 </div>
 
 <div id="messages"></div>
 
+<div id="sendRow">
+    <input type="text" id="msgInput" placeholder="Mesajınız..." onkeydown="if(event.key==='Enter') send()" />
+    <button onclick="send()">Gönder</button>
+</div>
+
 <script>
     let connection;
+    let myUserId;
+    let groupId;
+    const API_BASE = ""; // Farklı bir origin'deyse buraya backend URL'ini yazın, örn: "https://localhost:7001"
 
-    // 1. TELSİZE GÜVENLİ BAĞLANTI KURMA
-    function connectToSignalR() {
-        const token = document.getElementById("tokenInput").value;
-        if(!token) { alert("Token girmeden bağlanamazsın!"); return; }
+    function appendMsg(text, cls) {
+        const el = document.getElementById("messages");
+        const div = document.createElement("div");
+        div.className = "msg " + cls;
+        div.innerText = text;
+        el.appendChild(div);
+        el.scrollTop = el.scrollHeight;
+    }
 
-        // JWT Token'ı URL'nin sonuna ekleyerek gönderiyoruz (Backend'de bunu yakalayacak kodu yazmıştık!)
+    function decodeUserId(token) {
+        // JWT'nin payload kısmını çözüp kullanıcı ID'sini "mine/other" ayrımı için çıkarıyoruz
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            return payload.sub || payload.nameid || payload.userId || null;
+        } catch { return null; }
+    }
+
+    async function connect() {
+        const token = document.getElementById("tokenInput").value.trim();
+        groupId = parseInt(document.getElementById("groupIdInput").value);
+        if (!token || !groupId) { alert("Token ve Grup ID gerekli"); return; }
+
+        myUserId = decodeUserId(token);
+
+        // 1. Geçmiş mesajları REST'ten çek
+        try {
+            const res = await fetch(`${API_BASE}/api/messages/group/${groupId}`, {
+                headers: { Authorization: "Bearer " + token }
+            });
+            const data = await res.json();
+
+            if (data.isSuccess === false && data.data == null) {
+                appendMsg("Geçmiş yüklenemedi: " + (data.message || "yetkisiz"), "sys");
+            } else {
+                const list = data.data || [];
+                list.forEach(m => {
+                    appendMsg(`Kullanıcı ${m.senderId}: ${m.content}`, m.isMine ? "mine" : "other");
+                });
+            }
+        } catch (err) {
+            appendMsg("Geçmiş çekilirken hata: " + err, "sys");
+        }
+
+        // 2. SignalR'a bağlan
         connection = new signalR.HubConnectionBuilder()
-            .withUrl("/chathub?access_token=" + token)
+            .withUrl(`${API_BASE}/chathub?access_token=` + token)
+            .withAutomaticReconnect()
             .build();
 
-        // Karşıdan mesaj gelirse ne olacak? (Backend'deki ReceivePrivateMessage ismini dinliyoruz)
-        connection.on("ReceivePrivateMessage", function (senderId, message) {
-            appendMessage(`Kullanıcı ${senderId}: ${message}`, 'other');
+        connection.on("ReceiveGroupMessage", (id, senderId, content) => {
+            appendMsg(`Kullanıcı ${senderId}: ${content}`, String(senderId) === String(myUserId) ? "mine" : "other");
         });
 
-        connection.start().then(function () {
-            document.getElementById("loginPanel").style.display = "none";
-            document.getElementById("chatPanel").style.display = "block";
-            appendMessage("Sisteme başarıyla bağlandınız! 🟢", 'other');
-        }).catch(function (err) {
-            alert("Bağlantı hatası! Token süresi dolmuş veya hatalı olabilir.");
-            console.error(err);
+        connection.on("GroupMessageQueued", () => {
+            // Sessizce geç, mesaj zaten kendi ekranımıza anında yazılıyor
         });
+
+        try {
+            await connection.start();
+            await connection.invoke("JoinGroup", groupId);
+            document.getElementById("setup").style.display = "none";
+            document.getElementById("sendRow").style.display = "block";
+            appendMsg("✅ Gruba bağlanıldı", "sys");
+        } catch (err) {
+            appendMsg("❌ Bağlantı/katılım hatası: " + err.message, "sys");
+        }
     }
 
-    // 2. MESAJ GÖNDERME
-    function sendPrivateMessage() {
-        const receiverId = parseInt(document.getElementById("receiverIdInput").value);
-        const message = document.getElementById("messageInput").value;
+    function send() {
+        const input = document.getElementById("msgInput");
+        const content = input.value.trim();
+        if (!content) return;
 
-        if(!receiverId || !message) { alert("Alıcı ID ve mesaj boş olamaz!"); return; }
-
-        // Backend'deki ChatHub sınıfının içindeki 'SendPrivateMessage' metodunu tetikliyoruz
-        connection.invoke("SendPrivateMessage", receiverId, message).then(() => {
-            // Mesaj başarıyla gittiyse kendi ekranıma da yaz
-            appendMessage(`Sen: ${message}`, 'mine');
-            document.getElementById("messageInput").value = ""; // Kutuyu temizle
-        }).catch(function (err) {
-            console.error(err);
-        });
-    }
-
-    // Ekrana balonculuk çizme fonksiyonu
-    function appendMessage(text, type) {
-        const msgDiv = document.createElement("div");
-        msgDiv.className = "msg " + type;
-        msgDiv.innerText = text;
-        document.getElementById("messages").appendChild(msgDiv);
+        connection.invoke("SendGroupMessage", groupId, content)
+            .then(() => { input.value = ""; })
+            .catch(err => appendMsg("❌ Hata: " + err.message, "sys"));
     }
 </script>
 </body>

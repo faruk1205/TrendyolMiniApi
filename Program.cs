@@ -5,6 +5,8 @@ using TrendyolMiniApi.Extensions;
 using TrendyolMiniApi.Hubs;
 using TrendyolMiniApi.Jobs;
 using TrendyolMiniApi.Markers;
+using TrendyolMiniApi.Hubs;
+using TrendyolMiniApi.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,6 +69,9 @@ builder.Services.AddHttpClientsInfrastructure();
 builder.Services.AddHangfireInfrastructure(builder.Configuration);
 builder.Services.AddMappingInfrastructure();
 builder.Services.AddSoapClientInfrastructure();
+
+
+builder.Services.AddHostedService<GroupMessageWorker>();
 
 // ==========================================
 // 3. UYGULAMANIN İNŞASI VE ARA YAZILIMLAR (MIDDLEWARE)

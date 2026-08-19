@@ -1,15 +1,16 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TrendyolMiniApi.Data;
 using TrendyolMiniApi.DTOs;
+using TrendyolMiniApi.Enums;
 using TrendyolMiniApi.Markers;
+using TrendyolMiniApi.Models;
 
 namespace TrendyolMiniApi.Services
 {
-    public class MessageService : IMessageService , IScopedService
+    public class MessageService : IMessageService, IScopedService
     {
         private readonly ApplicationDbContext _context;
 
-        // Veritabanı ile konuşma yetkisini servise veriyoruz
         public MessageService(ApplicationDbContext context)
         {
             _context = context;
@@ -17,9 +18,9 @@ namespace TrendyolMiniApi.Services
 
         public async Task<List<MessageResponseDto>> GetConversationAsync(int currentUserId, int otherUserId)
         {
-            // 1. SOHBET GEÇMİŞİNİ GETİR
+            // --- Mevcut 1-1 mesajlaşma mantığınız, hiç dokunmadım ---
             var messages = await _context.Messages
-                .Where(m => (m.SenderId == currentUserId && m.ReceiverId == otherUserId) || 
+                .Where(m => (m.SenderId == currentUserId && m.ReceiverId == otherUserId) ||
                             (m.SenderId == otherUserId && m.ReceiverId == currentUserId))
                 .OrderBy(m => m.CreatedDate)
                 .Select(m => new MessageResponseDto
@@ -34,7 +35,6 @@ namespace TrendyolMiniApi.Services
                 })
                 .ToListAsync();
 
-            // 2. GÖRÜLDÜ ÖZELLİĞİ
             var unreadMessages = await _context.Messages
                 .Where(m => m.SenderId == otherUserId && m.ReceiverId == currentUserId && !m.IsRead)
                 .ToListAsync();
@@ -47,6 +47,45 @@ namespace TrendyolMiniApi.Services
                 }
                 await _context.SaveChangesAsync();
             }
+
+            return messages;
+        }
+
+        public async Task<List<GroupMessageResponseDto>> GetGroupConversationAsync(
+            int groupId, int currentUserId, int? cursor, int pageSize)
+        {
+            // Üye değilse geçmişi görmesin. Controller'a "yetkisiz" olarak
+            // yansıtmak için burada özel bir exception fırlatıyoruz.
+            var isMember = await _context.GroupMembers
+                .AnyAsync(m => m.GroupId == groupId && m.UserId == currentUserId);
+
+            if (!isMember)
+                throw new UnauthorizedAccessException("Bu gruba üye değilsiniz.");
+
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var query = _context.GroupMessages
+                .Where(m => m.GroupId == groupId && m.Status != MessageStatus.Failed);
+
+            if (cursor.HasValue)
+                query = query.Where(m => m.Id < cursor.Value);
+
+            var messages = await query
+                .OrderByDescending(m => m.Id)
+                .Take(pageSize)
+                .Select(m => new GroupMessageResponseDto
+                {
+                    Id = m.Id,
+                    SenderId = m.SenderId,
+                    GroupId = m.GroupId,
+                    Content = m.Content,
+                    CreatedDate = m.CreatedDate,
+                    IsMine = m.SenderId == currentUserId
+                })
+                .ToListAsync();
+
+            // Cursor ile geldiği için sonucu tekrar kronolojik sıraya çeviriyoruz
+            messages.Reverse();
 
             return messages;
         }

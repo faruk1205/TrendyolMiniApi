@@ -50,6 +50,8 @@ namespace TrendyolMiniApi.Middlewares
     }
 }
 
+/*************** GlobalExceptionHandler olmasaydı sistem çökmezdi. GlobalExceptionHandler'ın gerçek katkısı çökmeyi önlemek değil, cevabın kalitesini ve tutarlılığını kontrol etmek*****************/
+
 /*Örneğin kullanıcı Postman'de şunu görür:
 {
     "status":500,
