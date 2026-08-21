@@ -127,6 +127,37 @@ namespace TrendyolMiniApi.Hubs
         }
     }
 }
+
+
+//**************************************************************************************************************************************************************
+/*IHubContext<ChatHub>,bu GroupMessageWorker.cs 'de kullanılan ->
+ size sadece "dışarıdan içeri" bir mikrofon verir — sunucunun, herhangi bir yerden (worker, controller, başka bir servis), istemcilere mesaj göndermesini sağlar
+ await _hubContext.Clients.Group("1").SendAsync("ReceiveGroupMessage", ...);
+ Bu satır, istemciye bir event fırlatır. Ama istemcinin size bir şey söylemesini (bir metod çağırmasını) sağlamaz — çünkü öyle bir mekanizma yok. IHubContext'in Clients.Group(...).SendAsync(...) 
+ dışında istemciden gelen çağrıları dinleyecek hiçbir yapısı yok.
+ Ayrıca Sunucu, istemci hiçbir şey sormadan ona mesaj gönderebilir. Bu, HTTP'de mümkün olmayan şey. GroupMessageWorker, hiçbir istemci hiçbir şey çağırmamışken,
+  IHubContext ile canlı bağlı bir tarayıcıya ReceiveGroupMessage event'ini anında iter. HTTP'de böyle bir şey yok — sunucu asla inisiyatif alamaz, hep istemci sormak zorunda.
+ 
+Ama hub sınıfımızda yani bu sınıfta mesela -> istemciden sunucuyadır yani
+SendGroupMessage, JoinGroup gibi metodlar tam tersi yönde çalışıyor — istemci tarafında connection.invoke("SendGroupMessage", groupId, content) çağrıldığında,
+SignalR bu isteği sizin ChatHub sınıfınızdaki o isimdeki metoda otomatik olarak yönlendiriyor. Bu eşleme (invoke("MetodAdı", ...) → Hub sınıfındaki MetodAdı),
+SignalR'ın protokolünün temeli — sadece Hub'dan miras alan sınıflarda çalışır, başka hiçbir sınıfta çalışmaz.
+
+Ayrıca Hub'a özel, başka yerde olmayan araçlar var
+ChatHub içinde kullandığımız şu şeyler sadece bir Hub metodunun içinde mevcuttur, IHubContext üzerinden(mesela GroupMessageWorker.cs'ten) erişilemez:
+Context.UserIdentifier — o an bağlanan kullanıcının kimliği
+Context.ConnectionId — o spesifik bağlantının ID'si
+Groups.AddToGroupAsync(...) — o an çağrıyı yapan bağlantıyı bir gruba ekleme
+Clients.Caller — sadece o isteği atan istemciye cevap verme
+Bunların hepsi "şu an bana kim, hangi bağlantıdan sesleniyor" bilgisine ihtiyaç duyar — bu bilgi sadece gerçek bir Hub çağrısı sırasında var olur,
+IHubContext ile dışarıdan erişildiğinde yoktur (çünkü o an aktif bir "çağıran" yok, siz sadece dışarıdan bir yayın yapıyorsunuz).
+//***************************************************************************************************************************************************************/
+
+#region MyRegion
+
+
+
+
     /*[Authorize] // GÜVENLİK DUVARI: Sadece giriş yapmış (JWT'si olan) kişiler telsize bağlanabilir.
     public class ChatHub : Hub
     {
@@ -174,6 +205,7 @@ namespace TrendyolMiniApi.Hubs
         }
     }
 }*/
+#endregion
 //Hub istemciler arasındaki iletişimi yönetir.
 /*Telefon Santrali
 

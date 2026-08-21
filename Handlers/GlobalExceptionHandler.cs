@@ -79,3 +79,7 @@ Hata loglanır.
 Exception türüne göre uygun HTTP durum kodu seçilir (404, 400, 403, 500 vb.).
 İstemciye standart bir ProblemDetails JSON cevabı gönderilir.
 return true ile "Bu hatayı ben işledim, başka handler arama." denmiş olur.*/
+
+/*Hata Durumu	GlobalExceptionHandler Ne Yapar?
+Handling Edilmiş (try-catch ile yakalanmış)	- > Hiçbir şey yapmaz! Bu hatayı görmez bile. Çünkü hata zaten yakalanmış ve işlenmiştir.
+Handling Edilmemiş (unhandled)	Devreye girer! - > Hatayı yakalar, loglar, status code belirler ve istemciye düzgün cevap gönderir.*/

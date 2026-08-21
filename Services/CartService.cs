@@ -158,6 +158,9 @@ namespace TrendyolMiniApi.Services
                     .Include(c => c.Product)
                     .Where(c => c.UserId == userId)
                     .ToListAsync(ct);
+                
+                if (!freshCartItems.Any())
+                    throw new InvalidOperationException("Sepetiniz boş.");
 
                 var order = new Order
                 {

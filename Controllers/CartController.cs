@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrendyolMiniApi.Attributes;
 using TrendyolMiniApi.DTOs;
 using TrendyolMiniApi.Services;
 
@@ -35,6 +36,7 @@ namespace TrendyolMiniApi.Controllers
             return BaseResponseDto<CartDetailResponseDto>.SuccessResult(cart, "Sepet başarıyla getirildi.");
         }
 
+        [Idempotent]
         [HttpPost("checkout")]
         [Authorize]
         public async Task<IActionResult> Checkout(CancellationToken ct)
