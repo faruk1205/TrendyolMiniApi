@@ -80,7 +80,7 @@ namespace TrendyolMiniApi.Workers
                 return;
             }
 
-            using var scope = _serviceProvider.CreateScope();
+            using var scope = _serviceProvider.CreateScope(); //singleton içerisinde scope dbContex nesnesi kullandığımız için bu lazım
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var message = await dbContext.GroupMessages

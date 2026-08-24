@@ -33,7 +33,7 @@ namespace TrendyolMiniApi.Hubs
             var senderId = GetUserId();
             var isMember = await _dbContext.GroupMembers.AnyAsync(m => m.GroupId == groupId && m.UserId == senderId);
             if (!isMember) throw new HubException("Bu gruba katılamazsınız.");
-            await Groups.AddToGroupAsync(Context.ConnectionId, groupId.ToString());
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupId.ToString()); //Canlı gruba ekliyoruz
         }
 
         // ---------- 1-1 MESAJLAŞMA ----------
@@ -75,7 +75,7 @@ namespace TrendyolMiniApi.Hubs
                 throw new HubException("Bu gruba mesaj gönderme yetkiniz yok.");
 
             // Sorun #6 çözümü: kullanıcı başına rate limit
-            var allowed = await _rateLimiter.IsAllowedAsync(
+            var allowed = await _rateLimiter.IsAllowedAsync( // await kullanıldı çünkü rateLimiter fonksiyonunun dönüş tipi task'tı.
                 senderId, "group-msg", GroupMsgLimitPerSecond, TimeSpan.FromSeconds(1));
 
             if (!allowed)

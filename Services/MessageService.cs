@@ -62,13 +62,13 @@ namespace TrendyolMiniApi.Services
             if (!isMember)
                 throw new UnauthorizedAccessException("Bu gruba üye değilsiniz.");
 
-            pageSize = Math.Clamp(pageSize, 1, 100);
+            pageSize = Math.Clamp(pageSize, 1, 100); //"pageSize 1'den küçükse 1 yap, 100'den büyükse 100 yap, aradaysa olduğu gibi bırak."
 
             var query = _context.GroupMessages
                 .Where(m => m.GroupId == groupId && m.Status != MessageStatus.Failed);
 
             if (cursor.HasValue)
-                query = query.Where(m => m.Id < cursor.Value);
+                query = query.Where(m => m.Id < cursor.Value); //"Bana cursor olarak verilen mesaj ID'sinden daha eski mesajları getir." Cursor, "buraya kadar geldim; bundan daha eski/yeni kayıtları getir" diye backend'e verilen referans noktasıdır.
 
             var messages = await query
                 .OrderByDescending(m => m.Id)
